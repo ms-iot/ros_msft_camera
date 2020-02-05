@@ -3,7 +3,7 @@
 #ifndef CV_CAMERA_DRIVER_H
 #define CV_CAMERA_DRIVER_H
 
-#include "cv_camera/capture.h"
+#include "capture.h"
 
 namespace ros_win_camera
 {
@@ -51,7 +51,7 @@ class Driver
   /**
    * @brief wrapper of cv::VideoCapture.
    */
-  winrt::com_ptr<Capture> camera_;
+  winrt::com_ptr<WindowsCapture> camera_;
 
   /**
    * @brief publishing rate.
