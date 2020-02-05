@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.15.3)
-project(cv_camera)
+project(win_camera)
 
 find_package(catkin REQUIRED COMPONENTS
-  image_transport roscpp cv_bridge sensor_msgs nodelet camera_info_manager roslint)
-
-find_package(OpenCV REQUIRED)
+  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -13,12 +11,19 @@ set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set (CMAKE_CXX_EXTENSIONS FALSE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 roslint_cpp()
-
+add_message_files(
+   FILES
+   MFSample.msg
+ )
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+ )
+  
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES cv_camera
-  CATKIN_DEPENDS image_transport roscpp cv_bridge sensor_msgs nodelet camera_info_manager
-  DEPENDS OpenCV
+  LIBRARIES win_camera
+  CATKIN_DEPENDS image_transport roscpp sensor_msgs nodelet camera_info_manager message_runtime
   )
 
 include_directories(
@@ -28,44 +33,48 @@ include_directories(
   )
 
 ## Declare a cpp library
-add_library(cv_camera STATIC src/capture.cpp src/driver.cpp)
-add_library(cv_camera_nodelet SHARED src/cv_camera_nodelet.cpp)
-set_target_properties(cv_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
+add_library(win_camera STATIC src/capture.cpp)
 
+add_dependencies(win_camera win_camera_generate_messages_cpp)
+
+add_library(win_camera_nodelet SHARED src/win_camera_nodelet.cpp)
+set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
+ 
 add_compile_options ("/std:c++17")
-set_target_properties(cv_camera PROPERTIES
+set_target_properties(win_camera PROPERTIES
             CXX_STANDARD 17
             )
 			
 ## Declare a cpp executable
-add_executable(cv_camera_node src/cv_camera_node.cpp)
-add_dependencies(cv_camera_node cv_camera)
-add_dependencies(cv_camera_nodelet cv_camera)
+add_executable(win_camera_node src/win_camera_node.cpp)
+add_dependencies(win_camera_node win_camera)
+add_dependencies(win_camera_nodelet win_camera)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(cv_camera
+target_link_libraries(win_camera
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
   )
 
-target_link_libraries(cv_camera_nodelet
+target_link_libraries(win_camera_nodelet
   ${catkin_LIBRARIES}
-  cv_camera
+  win_camera
   mf
   mfplat
   mfuuid
   mfreadwrite
+  Mfsensorgroup
   shlwapi
   runtimeobject
   )
 
-target_link_libraries(cv_camera_node
+target_link_libraries(win_camera_node
   ${catkin_LIBRARIES}
-  cv_camera
-    mf
+  win_camera
+  mf
   mfplat
   mfuuid
   mfreadwrite
+  Mfsensorgroup
   shlwapi
   runtimeobject
   )
@@ -82,7 +91,7 @@ target_link_libraries(cv_camera_node
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS cv_camera cv_camera_nodelet cv_camera_node
+install(TARGETS win_camera win_camera_nodelet win_camera_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -93,7 +102,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
   )
 
 # add xml file
-install(FILES cv_camera_nodelets.xml
+install(FILES win_camera_nodelets.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
@@ -103,16 +112,16 @@ install(FILES cv_camera_nodelets.xml
 #############
 
 roslint_cpp(
-  src/capture.cpp src/cv_camera_node.cpp src/cv_camera_nodelet.cpp src/driver.cpp
+  src/capture.cpp src/win_camera_node.cpp src/win_camera_nodelet.cpp src/driver.cpp
   )
 
 if (CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
-  add_rostest_gtest(test_cv_camera test/cv_camera.test
-    test/test_cv_camera.cpp)
-  target_link_libraries(test_cv_camera ${PROJECT_NAME} ${catkin_LIBRARIES})
+  add_rostest_gtest(test_win_camera test/win_camera.test
+    test/test_win_camera.cpp)
+  target_link_libraries(test_win_camera ${PROJECT_NAME} ${catkin_LIBRARIES})
 
-  add_rostest_gtest(test_cv_camera_no_yaml test/no_yaml.test
-    test/test_cv_camera_no_yaml.cpp)
-  target_link_libraries(test_cv_camera_no_yaml ${PROJECT_NAME} ${catkin_LIBRARIES})
+  add_rostest_gtest(test_win_camera_no_yaml test/no_yaml.test
+    test/test_win_camera_no_yaml.cpp)
+  target_link_libraries(test_win_camera_no_yaml ${PROJECT_NAME} ${catkin_LIBRARIES})
 endif()

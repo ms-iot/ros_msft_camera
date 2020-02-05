@@ -1,17 +1,19 @@
 // Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
-#include "cv_camera/driver.h"
+#include "capture.h"
 
 #include <nodelet/nodelet.h>
-//using namespace ros_win_camera;
+
 namespace ros_win_camera
 {
 
 /**
  * @brief Nodelet version of cv_camera.
  */
+    const int32_t PUBLISHER_BUFFER_SIZE = 4;
 class CvCameraNodelet : public nodelet::Nodelet
 {
+
 public:
   CvCameraNodelet() 
   {
@@ -28,11 +30,13 @@ private:
   virtual void onInit()
   {
     waitForDriver.lock();
-    driver_.reset(new Driver(getPrivateNodeHandle(),
-                             getPrivateNodeHandle()));
+    std::string frame_id("camera");
+    camera.attach(new WindowsCapture(getPrivateNodeHandle(),
+        "image_raw", PUBLISHER_BUFFER_SIZE, frame_id));
     try
     {
-        driver_->setup([&](winrt::hresult_error ex, winrt::hstring msg)
+        // TODO: nodelet also needs to access the node params for device path and file/url if required
+        camera->Open("",[&](winrt::hresult_error ex, winrt::hstring msg)
             {
                 if (ex.code() == MF_E_END_OF_STREAM)
                 {
@@ -61,7 +65,7 @@ private:
   /**
    * @brief ROS cv camera driver.
    */
-  boost::shared_ptr<Driver> driver_;
+  winrt::com_ptr<WindowsCapture> camera;
   
 };
 

@@ -1,6 +1,5 @@
-// Copyright [2015] Takashi Ogura<t.ogura@gmail.com>
 
-#include "cv_camera/driver.h"
+#include "driver.h"
 #include <string>
 
 namespace
@@ -33,38 +32,27 @@ void Driver::setup(winrt::delegate<winrt::hresult_error, winrt::hstring> handler
         int32_t image_width(640);
         int32_t image_height(480);
 
-        camera_.attach(new Capture(camera_node_,
+        camera_.attach(new WindowsCapture(camera_node_,
             "image_raw",
             PUBLISHER_BUFFER_SIZE,
             frame_id));
 
         if (private_node_.getParam("file", file_path) && file_path != "")
         {
-            camera_->openFile(file_path);
+            camera_->OpenFile(file_path,handler);
         }
         else if (private_node_.getParam("device_path", device_path) && device_path != "")
         {
-            camera_->open(device_path);
+            camera_->Open(device_path,handler);
         }
         else
         {
-            camera_->open("");
+            camera_->Open("",handler);
         }
 
         rate_.reset(new ros::Rate(hz));
 
-        if (!((private_node_.getParam("image_width", image_width))
-            && (private_node_.getParam("image_height", image_height)))
-            )
-        {
-            image_width = 640;
-            image_height = 480;
-        }
-
-        if (!camera_->setResolution(image_width, image_height, (1000000000.0f / rate_->expectedCycleTime().nsec)))
-        {
-            ROS_WARN("fail to set res");
-        }
+        
 
         //  camera_->setPropertyFromParam(CV_CAP_PROP_POS_MSEC, "cv_cap_prop_pos_msec");
         //  camera_->setPropertyFromParam(CV_CAP_PROP_POS_AVI_RATIO, "cv_cap_prop_pos_avi_ratio");

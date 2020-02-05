@@ -1,0 +1,10 @@
+<library path="lib/libwin_camera_nodelet">
+
+  <class name="ros_win_camera/WinCameraNodelet"
+	 type="ros_win_camera::WinCameraNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      Windows MF based camera driver nodelet.
+    </description>
+  </class>
+
+</library>
