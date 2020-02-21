@@ -86,26 +86,21 @@ namespace ros_win_camera
         slim_lock_guard g(m_apiGuardMutex);
         if (!m_bStreamingStarted) return;
 
-        m_sampleHandlerMutex.lock();
+        winrt::slim_mutex completionMutex;
+        completionMutex.lock();
 
-        //winrt::slim_mutex completionMutex;
-        //completionMutex.lock();
-
-        //EnterCriticalSection(&m_critsec);
-
-        check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
-        m_sampleHandlerMutex.lock();
-        m_sampleHandlerMutex.unlock();
-        /*m_configEventTokenList.Append(m_configEvent.add([&]()
+        EnterCriticalSection(&m_critsec);
+        m_configEventTokenList.Append(m_configEvent.add([&]()
         {
-            m_sampleHandlerMutex
             m_bStreamingStarted = false;
+            check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, FALSE));
             completionMutex.unlock();
-        }));*/
-        //LeaveCriticalSection(&m_critsec);
+        }));
+        LeaveCriticalSection(&m_critsec);
+        check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
 
         // wait for the config-stop event to complete
-        //completionMutex.lock();
+        completionMutex.lock();
         _INFO("\nStopped streaming complete!\n");
         m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"Sample Stopped", nullptr);
     }
@@ -211,7 +206,6 @@ namespace ros_win_camera
             }
             if (MF_SOURCE_READERF_ENDOFSTREAM & dwStreamFlags)
             {
-                ////TODO: need to handle EOS
                 m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"End Of stream",nullptr);
             }
         }
@@ -220,13 +214,6 @@ namespace ros_win_camera
             _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
             m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
         }
-        EnterCriticalSection(&m_critsec);
-        m_configEvent();
-        for (auto token : m_configEventTokenList)
-        {
-            m_configEvent.remove(token);
-        }
-        LeaveCriticalSection(&m_critsec);
         if (m_bStreamingStarted)
         {
             if (SUCCEEDED(hrStatus) && pSample)
@@ -235,20 +222,17 @@ namespace ros_win_camera
             }
 
             HRESULT hr = spSourceReader->ReadSample(MF_SOURCE_READER_FIRST_VIDEO_STREAM, m_u32SourceReaderFlags, NULL, NULL, NULL, NULL);
-            if (FAILED(hr))
+            if (hr == MF_E_NOTACCEPTING)
+            {
+                m_captureCallbackEvent(hresult_error(S_OK), L"Flush in progress", nullptr);
+            }
+            else if (FAILED(hr))
             {
                 hresult_error ex(hr);
                 _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
                 m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
             }
         }
-        //else
-        //{
-        //    //As we are in the sample callback and m_bStreamingStarted is false, that means streaming must have stopped
-        //    m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"Sample Stopped", nullptr);
-        //    
-        //}
-
         return S_OK;
     }
     bool WindowsMFCapture::FindMatchingMediaType(IMFMediaType** ppMediaType, int32_t width/*=0*/, int32_t height/*=0*/, float frameRate/*=0*/, GUID preferredVideoSubType/*=GUID_NULL*/)
@@ -265,8 +249,7 @@ namespace ros_win_camera
             check_hresult(MFGetAttributeRatio(spMediaType.get(), MF_MT_FRAME_RATE, &FRNum, &FRDen));
             check_hresult(spMediaType->GetGUID(MF_MT_SUBTYPE,&subType));
             float rate = ((float)FRNum / (float)FRDen);
-            _INFO("\nGot supported resolution :%dx%d@%d", m_u32Width, m_u32Height, (int)rate);
-            //if ((m_u32Width == width) && (height == m_u32Height) && ((int)rate == (int)frameRate))
+            //_INFO("\nGot supported resolution :%dx%d@%d", m_u32Width, m_u32Height, (int)rate);
             bMatch = ((height == 0) || (width == 0) || ((m_u32Width == width) && (height == m_u32Height)));
             bMatch = bMatch && (((int)rate == (int)frameRate) || (frameRate == 0));
             bMatch = bMatch &&  (IsEqualGUID(preferredVideoSubType, subType) || IsEqualGUID(preferredVideoSubType, GUID_NULL));
@@ -310,7 +293,7 @@ namespace ros_win_camera
             {
                 if (bForceConversion)
                 {
-                    _WARN("No matching resolution supported by source. Setting up a conversion");
+                    _WARN("No matching resolution and subtype supported by source. Setting up a conversion");
                     if (!FindMatchingMediaType(spMediaType.put(), width, height, frameRate, GUID_NULL))
                     {
                         if (!FindMatchingMediaType(spMediaType.put(), width, height, 0, GUID_NULL))
@@ -353,10 +336,12 @@ namespace ros_win_camera
         if (m_bStreamingStarted)
         {
             EnterCriticalSection(&m_critsec);
-            // post a delegate to be processed by the sample processing thread, so the order of mediatype change is maintained
+             // post a delegate to be processed by the sample processing thread, so the order of mediatype change is maintained
             m_configEventTokenList.Append(m_configEvent.add(configHandler));
             LeaveCriticalSection(&m_critsec);
+            check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
             completionMuxtex.lock();
+            check_hresult(spSourceReader->ReadSample(MF_SOURCE_READER_FIRST_VIDEO_STREAM, m_u32SourceReaderFlags, NULL, NULL, NULL, NULL));
         }
         else
         {

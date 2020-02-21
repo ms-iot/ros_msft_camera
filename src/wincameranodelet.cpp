@@ -59,7 +59,8 @@ namespace ros_win_camera
                     videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
                 }
             }
-            WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id);
+            std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
+            WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id, spCameraInfoManager.get());
             auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
             {
                 if (pSample)
@@ -73,7 +74,6 @@ namespace ros_win_camera
                     {
                         ROS_INFO("\nEOS");
                     }
-                    camera->StopStreaming();
                     waitForFinish.unlock();
                 }
             };
@@ -91,7 +91,7 @@ namespace ros_win_camera
                     {
                         ROS_INFO("\nEOS");
                     }
-                    camera->StopStreaming();
+ 
                     waitForFinish.unlock();
                 }
             };
@@ -102,32 +102,19 @@ namespace ros_win_camera
             camera->StartStreaming();
             if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
             {
-                if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32))
-                {
-                    if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_UYVY))
-                    {
-                        camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
-                    }
-                }
-
+                camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
+                camera->AddSampleHandler(handler);
             }
             else
             {
                 camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
-                if (!camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32))
-                {
-                    if (!camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_UYVY))
-                    {
-                        camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
-                    }
-                }
+                camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32);
+                camera->AddSampleHandler(handler1);
+                camera1->AddSampleHandler(handler);
             }
-            camera->AddSampleHandler(handler);
-            if (camera1) camera1->AddSampleHandler(handler1);
+
             //Sleep(3000);
             //camera->StopStreaming();
-            waitForFinish.lock();
-
         }
         winrt::slim_mutex waitForFinish;
     };

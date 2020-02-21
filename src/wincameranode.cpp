@@ -2,6 +2,7 @@
 #include "winrospublisher.h"
 #include <ros/ros.h>
 #include <string>
+
 using namespace ros_win_camera;
 const int32_t PUBLISHER_BUFFER_SIZE = 4;
 int main(int argc, char** argv)
@@ -41,8 +42,9 @@ int main(int argc, char** argv)
             videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
         }
     }
-    WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id);
-    WinRosPublisherMFSample mfSamplePublisher(privateNode, "MFSample", PUBLISHER_BUFFER_SIZE, frame_id);
+    std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
+    WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id, spCameraInfoManager.get());
+    WinRosPublisherMFSample mfSamplePublisher(privateNode, "MFSample", PUBLISHER_BUFFER_SIZE, frame_id, spCameraInfoManager.get());
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
         if (pSample)
@@ -82,7 +84,7 @@ int main(int argc, char** argv)
 
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     camera->StartStreaming();
-    camera->StopStreaming();
+    //camera->StopStreaming();
     if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
     {
         camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);

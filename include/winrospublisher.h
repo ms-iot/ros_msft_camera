@@ -2,10 +2,14 @@
 #include <winrt\base.h>
 
 #include <image_transport/image_transport.h>
+#include <compressed_image_transport/compressed_publisher.h>
+#include <compressed_image_transport/compression_common.h>
+#include <compressed_image_transport/CompressedPublisherConfig.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/image_encodings.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <win_camera\MFSample.h>
+#include <memory>
 using namespace winrt;
 namespace enc = sensor_msgs::image_encodings;
 namespace ros_win_camera
@@ -13,12 +17,12 @@ namespace ros_win_camera
     class WinRosPublisherBase
     {
     public:
-        WinRosPublisherBase(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
+        WinRosPublisherBase(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager *pCameraInfoManager)
             : m_nodeHandle(node),
             m_topicName(topic_name),
             m_i32BufferSize(buffer_size),
             m_frameID(frame_id),
-            m_cameraInfoManager(m_nodeHandle, frame_id)
+            m_spCameraInfoManager(pCameraInfoManager)
         {
 
         }
@@ -31,15 +35,15 @@ namespace ros_win_camera
         int32_t m_i32BufferSize;
 
         sensor_msgs::CameraInfo m_cameraInfo;
-        camera_info_manager::CameraInfoManager m_cameraInfoManager;
-
+        std::shared_ptr<camera_info_manager::CameraInfoManager> m_spCameraInfoManager;
+        
     };
 
     class WinRosPublisherImageRaw : WinRosPublisherBase
     {
     public:
-        WinRosPublisherImageRaw(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
-            : WinRosPublisherBase(node,topic_name,buffer_size,frame_id)
+        WinRosPublisherImageRaw(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
+            : WinRosPublisherBase(node,topic_name,buffer_size,frame_id, pCameraInfoManager)
             , m_imageTransport(m_nodeHandle)
         {
             m_bRescaleCameraInfo = m_nodeHandle.param<bool>("rescale_camera_info", false);
@@ -59,7 +63,7 @@ namespace ros_win_camera
                     LONG Stride;
                     ros::Time now = ros::Time::now();
 
-                    m_cameraInfo = m_cameraInfoManager.getCameraInfo();
+                    m_cameraInfo = m_spCameraInfoManager->getCameraInfo();
                     if (m_cameraInfo.height == 0 && m_cameraInfo.width == 0)
                     {
                         m_cameraInfo.height = u32Height;
@@ -89,12 +93,14 @@ namespace ros_win_camera
                     spMediaBuf2d = spMediaBuf.as<IMF2DBuffer2>();
 
                     sensor_msgs::ImagePtr ros_image = boost::make_shared<sensor_msgs::Image>();
+
                     ros_image->header = m_cameraInfo.header;
                     ros_image->height = u32Height;
                     ros_image->width = u32Width;
                     ros_image->encoding = enc::BGRA8;
                     ros_image->is_bigendian = !*((uint8_t*)&littleEndian);
 
+                    
                     check_hresult(spMediaBuf2d->Lock2D(&pix, &Stride));
                     if (Stride < 0)
                     {
@@ -152,8 +158,8 @@ namespace ros_win_camera
     class WinRosPublisherMFSample : WinRosPublisherBase
     {
     public:
-        WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
-            : WinRosPublisherBase(node, topic_name, buffer_size, frame_id)
+        WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
+            : WinRosPublisherBase(node, topic_name, buffer_size, frame_id, pCameraInfoManager)
         {
             m_MFSamplePublisher = m_nodeHandle.advertise<win_camera::MFSample>(topic_name, 2);
         }
@@ -167,6 +173,37 @@ namespace ros_win_camera
         }
     private:
         ros::Publisher m_MFSamplePublisher;
+    };
+
+    class WinRosPublisherCompressed : WinRosPublisherBase
+    {
+    public:
+        WinRosPublisherCompressed(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
+            : WinRosPublisherBase(node, topic_name, buffer_size, frame_id, pCameraInfoManager)
+            , m_imageTransport(m_nodeHandle)
+        {
+            m_compressedPublisher = m_nodeHandle.advertise<sensor_msgs::CompressedImage>("compressed/jpeg", buffer_size);
+        }
+
+        void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
+        {
+            winrt::com_ptr<IMFMediaBuffer> spMediaBuf;
+            sensor_msgs::CompressedImagePtr ros_compressedImage = boost::make_shared<sensor_msgs::CompressedImage>();
+            ros_compressedImage->header = m_cameraInfo.header;
+            ros_compressedImage->format = compressed_image_transport::CompressedPublisher_jpeg;
+            check_hresult(pSample->GetBufferByIndex(0, spMediaBuf.put()));
+            BYTE* pData;
+            DWORD dwMaxLen, dwCurrLen;
+            spMediaBuf->Lock(&pData, &dwMaxLen, &dwCurrLen);
+            ros_compressedImage->data.resize(dwCurrLen);
+            memcpy(ros_compressedImage->data.data(), pData, dwCurrLen);
+            spMediaBuf->Unlock();
+            m_compressedPublisher.publish(ros_compressedImage);
+            
+        }
+    private:
+        ros::Publisher m_compressedPublisher;
+        image_transport::ImageTransport m_imageTransport;
     };
 
 }

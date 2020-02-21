@@ -76,8 +76,13 @@ namespace ros_win_camera
 
         STDMETHODIMP OnFlush(DWORD)
         {
-            m_bStreamingStarted = false;
-            m_sampleHandlerMutex.unlock();
+            EnterCriticalSection(&m_critsec);
+            m_configEvent();
+            for (auto token : m_configEventTokenList)
+            {
+                m_configEvent.remove(token);
+            }
+            LeaveCriticalSection(&m_critsec);
             return S_OK;
         }
 
