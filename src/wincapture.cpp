@@ -212,6 +212,7 @@ namespace ros_win_camera
             }
             if (MF_SOURCE_READERF_ENDOFSTREAM & dwStreamFlags)
             {
+                ////TODO: need to handle EOS
                 m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"End Of stream",nullptr);
             }
         }
@@ -220,6 +221,13 @@ namespace ros_win_camera
             _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
             m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
         }
+        EnterCriticalSection(&m_critsec);
+        m_configEvent();
+        for (auto token : m_configEventTokenList)
+        {
+            m_configEvent.remove(token);
+        }
+        LeaveCriticalSection(&m_critsec);
         if (m_bStreamingStarted)
         {
             if (SUCCEEDED(hrStatus) && pSample)
@@ -239,6 +247,13 @@ namespace ros_win_camera
                 m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
             }
         }
+        //else
+        //{
+        //    //As we are in the sample callback and m_bStreamingStarted is false, that means streaming must have stopped
+        //    m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"Sample Stopped", nullptr);
+        //    
+        //}
+
         return S_OK;
     }
     bool WindowsMFCapture::FindMatchingMediaType(IMFMediaType** ppMediaType, int32_t width/*=0*/, int32_t height/*=0*/, float frameRate/*=0*/, GUID preferredVideoSubType/*=GUID_NULL*/)
