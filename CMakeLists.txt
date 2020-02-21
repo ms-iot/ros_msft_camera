@@ -33,11 +33,11 @@ include_directories(
   )
 
 ## Declare a cpp library
-add_library(win_camera STATIC src/capture.cpp)
+add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
 
 add_dependencies(win_camera win_camera_generate_messages_cpp)
 
-add_library(win_camera_nodelet SHARED src/win_camera_nodelet.cpp)
+add_library(win_camera_nodelet SHARED src/wincameranodelet.cpp)
 set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
  
 add_compile_options ("/std:c++17")
@@ -46,7 +46,7 @@ set_target_properties(win_camera PROPERTIES
             )
 			
 ## Declare a cpp executable
-add_executable(win_camera_node src/win_camera_node.cpp)
+add_executable(win_camera_node src/wincameranode.cpp)
 add_dependencies(win_camera_node win_camera)
 add_dependencies(win_camera_nodelet win_camera)
 

@@ -1,0 +1,172 @@
+#include <mfapi.h>
+#include <winrt\base.h>
+
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/image_encodings.h>
+#include <camera_info_manager/camera_info_manager.h>
+#include <win_camera\MFSample.h>
+using namespace winrt;
+namespace enc = sensor_msgs::image_encodings;
+namespace ros_win_camera
+{
+    class WinRosPublisherBase
+    {
+    public:
+        WinRosPublisherBase(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
+            : m_nodeHandle(node),
+            m_topicName(topic_name),
+            m_i32BufferSize(buffer_size),
+            m_frameID(frame_id),
+            m_cameraInfoManager(m_nodeHandle, frame_id)
+        {
+
+        }
+        virtual void OnSample(IMFSample *pSample, UINT32 u32Width, UINT32 u32Height) = 0;
+
+    protected:
+        ros::NodeHandle m_nodeHandle;
+        std::string m_topicName;
+        std::string m_frameID;
+        int32_t m_i32BufferSize;
+
+        sensor_msgs::CameraInfo m_cameraInfo;
+        camera_info_manager::CameraInfoManager m_cameraInfoManager;
+
+    };
+
+    class WinRosPublisherImageRaw : WinRosPublisherBase
+    {
+    public:
+        WinRosPublisherImageRaw(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
+            : WinRosPublisherBase(node,topic_name,buffer_size,frame_id)
+            , m_imageTransport(m_nodeHandle)
+        {
+            m_bRescaleCameraInfo = m_nodeHandle.param<bool>("rescale_camera_info", false);
+            m_cameraPublisher = m_imageTransport.advertiseCamera(m_topicName, m_i32BufferSize);
+        }
+
+        void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
+        {
+            try 
+            {
+                if (pSample)
+                {
+                    winrt::com_ptr<IMFMediaBuffer> spMediaBuf;
+                    winrt::com_ptr<IMF2DBuffer2> spMediaBuf2d;
+                    uint32_t littleEndian = 1;
+                    BYTE* pix;
+                    LONG Stride;
+                    ros::Time now = ros::Time::now();
+
+                    m_cameraInfo = m_cameraInfoManager.getCameraInfo();
+                    if (m_cameraInfo.height == 0 && m_cameraInfo.width == 0)
+                    {
+                        m_cameraInfo.height = u32Height;
+                        m_cameraInfo.width = u32Width;
+                    }
+                    else if (m_cameraInfo.height != u32Height || m_cameraInfo.width != u32Width)
+                    {
+                        if (m_bRescaleCameraInfo)
+                        {
+                            int old_width = m_cameraInfo.width;
+                            int old_height = m_cameraInfo.height;
+                            RescaleCameraInfo(u32Width, u32Height);
+                            ROS_INFO_ONCE("Camera calibration automatically rescaled from %dx%d to %dx%d",
+                                old_width, old_height, u32Width, u32Height);
+                        }
+                        else
+                        {
+                            ROS_WARN_ONCE("Calibration resolution %dx%d does not match camera resolution %dx%d. "
+                                "Use rescale_camera_info param for rescaling",
+                                m_cameraInfo.width, m_cameraInfo.height, u32Width, u32Height);
+                        }
+                    }
+                    m_cameraInfo.header.stamp = now;
+                    m_cameraInfo.header.frame_id = m_frameID;
+
+                    check_hresult(pSample->GetBufferByIndex(0, spMediaBuf.put()));
+                    spMediaBuf2d = spMediaBuf.as<IMF2DBuffer2>();
+
+                    sensor_msgs::ImagePtr ros_image = boost::make_shared<sensor_msgs::Image>();
+                    ros_image->header = m_cameraInfo.header;
+                    ros_image->height = u32Height;
+                    ros_image->width = u32Width;
+                    ros_image->encoding = enc::BGRA8;
+                    ros_image->is_bigendian = !*((uint8_t*)&littleEndian);
+
+                    check_hresult(spMediaBuf2d->Lock2D(&pix, &Stride));
+                    if (Stride < 0)
+                    {
+                        ros_image->step = -Stride;
+                        size_t size = ros_image->step * u32Height;
+                        ros_image->data.resize(size);
+                        for (int i = 0; i < u32Height; i++)
+                        {
+                            memcpy(ros_image->data.data(), pix + Stride * i, -Stride);
+                        }
+                    }
+                    else
+                    {
+                        ros_image->step = Stride;
+                        size_t size = Stride * u32Height;
+                        ros_image->data.resize(size);
+                        memcpy(ros_image->data.data(), pix, size);
+
+                    }
+                    check_hresult(spMediaBuf2d->Unlock2D());
+                    m_cameraPublisher.publish(*ros_image, m_cameraInfo);
+                }
+            }
+            catch (winrt::hresult_error const& ex)
+            {
+                std::cout << ex.code() << ex.message().c_str();
+            }
+        }
+
+    private:
+        void RescaleCameraInfo(int width, int height)
+        {
+            double widthCoeff = static_cast<double>(width) / m_cameraInfo.width;
+            double heightCoeff = static_cast<double>(height) / m_cameraInfo.height;
+            m_cameraInfo.width = width;
+            m_cameraInfo.height = height;
+
+            // ref: http://docs.ros.org/api/sensor_msgs/html/msg/CameraInfo.html
+            m_cameraInfo.K[0] *= widthCoeff;
+            m_cameraInfo.K[2] *= widthCoeff;
+            m_cameraInfo.K[4] *= heightCoeff;
+            m_cameraInfo.K[5] *= heightCoeff;
+
+            m_cameraInfo.P[0] *= widthCoeff;
+            m_cameraInfo.P[2] *= widthCoeff;
+            m_cameraInfo.P[5] *= heightCoeff;
+            m_cameraInfo.P[6] *= heightCoeff;
+        }
+
+        image_transport::ImageTransport m_imageTransport;
+        image_transport::CameraPublisher m_cameraPublisher;
+        bool m_bRescaleCameraInfo;
+    };
+
+    class WinRosPublisherMFSample : WinRosPublisherBase
+    {
+    public:
+        WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id)
+            : WinRosPublisherBase(node, topic_name, buffer_size, frame_id)
+        {
+            m_MFSamplePublisher = m_nodeHandle.advertise<win_camera::MFSample>(topic_name, 2);
+        }
+        
+        void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
+        {
+            win_camera::MFSamplePtr sampleMsg = boost::make_shared<win_camera::MFSample>();
+            sampleMsg->header = m_cameraInfo.header;
+            sampleMsg->pSample = (UINT64)pSample;
+            m_MFSamplePublisher.publish(*sampleMsg);
+        }
+    private:
+        ros::Publisher m_MFSamplePublisher;
+    };
+
+}
