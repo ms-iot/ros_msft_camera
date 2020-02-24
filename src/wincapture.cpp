@@ -7,6 +7,15 @@ using namespace winrt::Windows::System::Threading;
 #define _INFO printf
 #define _WARN printf
 #define _ERROR printf
+#define  LOG_TRANSFORMS() \
+{\
+int i = 0;\
+                while (MF_E_INVALIDINDEX != spSourceReader.try_as<IMFSourceReaderEx>()->GetTransformForStream(MF_SOURCE_READER_FIRST_VIDEO_STREAM, i++, &guid, spTransform.put()))\
+                {\
+                    _INFO("\nTranform %d: %x-%x-%x-%x%x%x%x", i - 1, guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3]);\
+                }\
+                _INFO("\nNumber of tranforms in Chain: %d", i - 1);\
+}
 
 namespace ros_win_camera
 {
@@ -194,12 +203,7 @@ namespace ros_win_camera
                 _INFO("\nCurrent Type changed %dx%d", m_u32Width, m_u32Height);
                 GUID guid;
                 winrt::com_ptr<IMFTransform> spTransform;
-                /*int i = 0;
-                while (MF_E_INVALIDINDEX != spSourceReader.try_as<IMFSourceReaderEx>()->GetTransformForStream(MF_SOURCE_READER_FIRST_VIDEO_STREAM, i++, &guid, spTransform.put()))
-                {
-                    _INFO("\nTranform %d: %x-%x-%x-%x%x%x%x", i - 1, guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3]);
-                }
-                _INFO("\nNumber of tranforms in Chain: %d", i - 1);*/
+                LOG_TRANSFORMS();
 
                 m_u32SourceReaderFlags = MF_SOURCE_READER_CONTROLF_DRAIN;
 
@@ -301,13 +305,15 @@ namespace ros_win_camera
                             bStatus = false;
                         }
                     }
-                    DWORD flags;
-                    check_hresult(spSourceReader.as<IMFSourceReaderEx>()->SetNativeMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMediaType.get(), &flags));
-                    check_hresult(spMediaType->SetGUID(MF_MT_SUBTYPE, preferredVideoSubType));
-                    check_hresult(spSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, spMediaType.get()));
-                    m_u32Width = width;
-                    m_u32Height = height;
-
+                    if (bStatus)
+                    {
+                        DWORD flags;
+                        check_hresult(spSourceReader.as<IMFSourceReaderEx>()->SetNativeMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMediaType.get(), &flags));
+                        check_hresult(spMediaType->SetGUID(MF_MT_SUBTYPE, preferredVideoSubType));
+                        check_hresult(spSourceReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, spMediaType.get()));
+                        m_u32Width = width;
+                        m_u32Height = height;
+                    }
                 }
                 else
                 {

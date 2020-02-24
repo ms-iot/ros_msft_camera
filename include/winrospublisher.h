@@ -100,7 +100,6 @@ namespace ros_win_camera
                     ros_image->encoding = enc::BGRA8;
                     ros_image->is_bigendian = !*((uint8_t*)&littleEndian);
 
-                    
                     check_hresult(spMediaBuf2d->Lock2D(&pix, &Stride));
                     if (Stride < 0)
                     {

@@ -2,7 +2,8 @@
 #include "winrospublisher.h"
 #include <ros/ros.h>
 #include <string>
-
+using namespace winrt::Windows::System::Threading;
+using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
 const int32_t PUBLISHER_BUFFER_SIZE = 4;
 int main(int argc, char** argv)
@@ -45,13 +46,36 @@ int main(int argc, char** argv)
     std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
     WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id, spCameraInfoManager.get());
     WinRosPublisherMFSample mfSamplePublisher(privateNode, "MFSample", PUBLISHER_BUFFER_SIZE, frame_id, spCameraInfoManager.get());
+    bool resChangeInProgress = false;
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
         if (pSample)
         {
-            //castd::cout << "Received SAmple\n";
-            rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
-            mfSamplePublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+            auto info = spCameraInfoManager->getCameraInfo();
+            if (((info.height != Height) || (info.width != Width)) && info.height && info.width && (!resChangeInProgress))
+            {
+                resChangeInProgress = true;
+                ThreadPool::RunAsync([camera, &Width, &Height, frameRate, spCameraInfoManager, &resChangeInProgress](IAsyncAction)
+                    {
+                        auto info = spCameraInfoManager->getCameraInfo();
+                        if (camera->ChangeCaptureConfig(info.width, info.height, frameRate, MFVideoFormat_ARGB32, true))
+                        {
+                            Height = info.height;
+                            Width = info.width;
+                            resChangeInProgress = false;
+                        }
+                        else
+                        {
+                            ROS_WARN("Setting resolution  failed. Use rescale_camera_info param for rescaling");
+                        }
+                    });
+            }
+            else
+            {
+                //castd::cout << "Received SAmple\n";
+                rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+                mfSamplePublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+            }
         }
         else
         {
@@ -102,10 +126,14 @@ int main(int argc, char** argv)
         camera1->AddSampleHandler(handler);
     }
 
-    //Sleep(3000);
+    Sleep(10000);
+    auto info = spCameraInfoManager->getCameraInfo();
+    info.height = 720;
+    info.width = 400;
+    spCameraInfoManager->setCameraInfo(info);
     std::cout << "\nPress enter key to stop";
     std::cin.get();
     camera->StopStreaming();
     waitForFinish.lock();
-
+    return 0;
 }
