@@ -1,3 +1,4 @@
+// Copyright (C) Microsoft Corporation. All rights reserved.
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>

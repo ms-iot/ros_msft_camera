@@ -1,3 +1,4 @@
+// Copyright (C) Microsoft Corporation. All rights reserved.
 #include "wincapture.h"
 using namespace winrt;
 using namespace winrt::Windows::Foundation;

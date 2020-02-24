@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+
 #include "wincapture.h"
 #include "winrospublisher.h"
 #include <ros/ros.h>
