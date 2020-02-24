@@ -72,7 +72,6 @@ int main(int argc, char** argv)
             }
             else
             {
-                //castd::cout << "Received SAmple\n";
                 rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
                 mfSamplePublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
             }
@@ -91,7 +90,7 @@ int main(int argc, char** argv)
     {
         if (pSample)
         {
-            std::cout << "Received SAmple compressed\n";
+            ROS_INFO("Received SAmple compressed\n");
 
         }
         else
@@ -108,7 +107,7 @@ int main(int argc, char** argv)
 
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     camera->StartStreaming();
-    //camera->StopStreaming();
+
     if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
     {
         camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
