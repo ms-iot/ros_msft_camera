@@ -44,7 +44,7 @@ add_compile_options ("/std:c++17")
 set_target_properties(win_camera PROPERTIES
             CXX_STANDARD 17
             )
-			
+
 ## Declare a cpp executable
 add_executable(win_camera_node src/wincameranode.cpp)
 add_dependencies(win_camera_node win_camera)
@@ -106,22 +106,3 @@ install(FILES win_camera_nodelets.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
-
-#############
-## Testing ##
-#############
-
-roslint_cpp(
-  src/capture.cpp src/win_camera_node.cpp src/win_camera_nodelet.cpp src/driver.cpp
-  )
-
-if (CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-  add_rostest_gtest(test_win_camera test/win_camera.test
-    test/test_win_camera.cpp)
-  target_link_libraries(test_win_camera ${PROJECT_NAME} ${catkin_LIBRARIES})
-
-  add_rostest_gtest(test_win_camera_no_yaml test/no_yaml.test
-    test/test_win_camera_no_yaml.cpp)
-  target_link_libraries(test_win_camera_no_yaml ${PROJECT_NAME} ${catkin_LIBRARIES})
-endif()
