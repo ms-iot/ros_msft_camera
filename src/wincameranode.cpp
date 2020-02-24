@@ -125,12 +125,13 @@ int main(int argc, char** argv)
         camera1->StartStreaming();
         camera1->AddSampleHandler(handler);
     }
-
+#ifdef TEST_SETCAMERAINFO
     Sleep(10000);
     auto info = spCameraInfoManager->getCameraInfo();
     info.height = 720;
     info.width = 400;
     spCameraInfoManager->setCameraInfo(info);
+#endif //#ifdef TEST_SETCAMERAINFO
     std::cout << "\nPress enter key to stop";
     std::cin.get();
     camera->StopStreaming();
