@@ -140,7 +140,7 @@ namespace ros_win_camera
             }
 
         }
-        winrt::slim_mutex m_waitForFinish;
+        std::mutex m_waitForFinish;
         winrt::com_ptr< ros_win_camera::WindowsMFCapture> m_camera, m_camera1;
         int32_t m_Width, m_Height;
         float m_frameRate;

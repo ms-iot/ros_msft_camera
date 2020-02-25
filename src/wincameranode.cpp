@@ -18,7 +18,7 @@ int main(int argc, char** argv)
     std::string frame_id("camera");
     privateNode.getParam("frame_rate", frameRate);
 
-    winrt::slim_mutex waitForFinish;
+    std::mutex waitForFinish;
     int32_t Width(640), Height(480);
 
     if (!((privateNode.getParam("image_width", Width))

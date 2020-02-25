@@ -42,13 +42,14 @@ namespace ros_win_camera
     }
     winrt::event_token  WindowsMFCapture::AddSampleHandler(winrt::delegate<winrt::hresult_error, winrt::hstring, IMFSample*> handler)
     {
-        slim_lock_guard g(m_apiGuardMutex);
+        std::lock_guard g(m_apiGuardMutex);
+
         auto tok = m_captureCallbackEvent.add(handler);
         return tok;
     }
     void WindowsMFCapture::RemoveSampleHandler(winrt::event_token token)
     {
-        slim_lock_guard g(m_apiGuardMutex);
+        std::lock_guard g(m_apiGuardMutex);
         m_captureCallbackEvent.remove(token);
     }
     winrt::Windows::Foundation::Collections::IVectorView<winrt::hstring> WindowsMFCapture::EnumerateCameraLinks(bool bEnumerateSensorCamera)
@@ -93,10 +94,10 @@ namespace ros_win_camera
 
     void WindowsMFCapture::StopStreaming()
     {
-        slim_lock_guard g(m_apiGuardMutex);
+        std::lock_guard g(m_apiGuardMutex);
         if (!m_bStreamingStarted) return;
 
-        winrt::slim_mutex completionMutex;
+        std::mutex completionMutex;
         completionMutex.lock();
 
         EnterCriticalSection(&m_critsec);
@@ -117,7 +118,7 @@ namespace ros_win_camera
 
     void WindowsMFCapture::StartStreaming()
     {
-        slim_lock_guard g(m_apiGuardMutex);
+        std::lock_guard g(m_apiGuardMutex);
         if (m_bStreamingStarted) return;
 
         winrt::com_ptr <IMFMediaType> spMT;
@@ -153,7 +154,7 @@ namespace ros_win_camera
         IMFSample* pSample      // Can be NULL
     )
     {
-        slim_lock_guard g(m_sampleHandlerMutex);
+        std::lock_guard g(m_sampleHandlerMutex);
         try
         {
             if (SUCCEEDED(hrStatus))
@@ -270,7 +271,7 @@ namespace ros_win_camera
     }
     bool WindowsMFCapture::ChangeCaptureConfig(int32_t width, int32_t height, float frameRate, GUID preferredVideoSubType, bool bForceConversion /*= false*/)
     {
-        slim_lock_guard g(m_apiGuardMutex);
+        std::lock_guard g(m_apiGuardMutex);
         bool bStatus = true;
         slim_mutex completionMuxtex;
         completionMuxtex.lock();
