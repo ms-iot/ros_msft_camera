@@ -9,7 +9,7 @@ using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 namespace ros_win_camera
 {
-    const int32_t PUBLISHER_BUFFER_SIZE = 4;
+    const int32_t PUBLISHER_QUEUE_SIZE = 4;
 
     class WinCameraNodelet : public nodelet::Nodelet
     {
@@ -18,7 +18,8 @@ namespace ros_win_camera
         WinCameraNodelet()
             : m_Width(640), 
             m_Height(480),
-            m_frameRate(30.0)
+            m_frameRate(30.0),
+            m_QueueSize(PUBLISHER_QUEUE_SIZE)
         {
         }
         ~WinCameraNodelet()
@@ -34,17 +35,13 @@ namespace ros_win_camera
             std::string videoSourcePath = "";
             bool isDevice = true;
             std::string frame_id("camera");
-            privateNode.getParam("frame_rate", m_frameRate);
+            privateNode.param("frame_rate", m_frameRate, 30.0f);
+            privateNode.param("pub_queue_size", m_QueueSize, PUBLISHER_QUEUE_SIZE);
 
-            if (!((privateNode.getParam("image_width", m_Width))
-                && (privateNode.getParam("image_height", m_Height)))
-                )
-            {
-                m_Width = 640;
-                m_Height = 480;
-            }
+            privateNode.param("image_width", m_Width, 640);
+            privateNode.param("image_height", m_Height, 480);
 
-            privateNode.getParam("frame_id", frame_id);
+            privateNode.param("frame_id", frame_id, std::string("camera"));
             privateNode.getParam("videoDeviceId", videoSourcePath);
             if (videoSourcePath.empty())
             {
@@ -60,8 +57,8 @@ namespace ros_win_camera
                 }
             }
 
-            m_spRawPublisher  = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", PUBLISHER_BUFFER_SIZE, frame_id, m_spCameraInfoManager.get());
-            m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", PUBLISHER_BUFFER_SIZE, frame_id, m_spCameraInfoManager.get());
+            m_spRawPublisher  = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", m_QueueSize, frame_id, m_spCameraInfoManager.get());
+            m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", m_QueueSize, frame_id, m_spCameraInfoManager.get());
 
             m_spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
             bool resChangeInProgress = false;
@@ -104,11 +101,11 @@ namespace ros_win_camera
                 }
             };
 
-            auto handler1 = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
+            auto compressedSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
             {
                 if (pSample)
                 {
-                    ROS_INFO("Received SAmple handller1\n");
+                    ROS_INFO("Received compressed Sample\n");
 
                 }
                 else
@@ -135,7 +132,7 @@ namespace ros_win_camera
             {
                 m_camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
                 m_camera1->ChangeCaptureConfig(m_Width, m_Height, m_frameRate, MFVideoFormat_ARGB32);
-                m_camera->AddSampleHandler(handler1);
+                m_camera->AddSampleHandler(compressedSampleHandler);
                 m_camera1->AddSampleHandler(handler);
             }
 
@@ -143,6 +140,7 @@ namespace ros_win_camera
         std::mutex m_waitForFinish;
         winrt::com_ptr< ros_win_camera::WindowsMFCapture> m_camera, m_camera1;
         int32_t m_Width, m_Height;
+        int32_t m_QueueSize;
         float m_frameRate;
         std::shared_ptr<camera_info_manager::CameraInfoManager> m_spCameraInfoManager;
         std::shared_ptr<WinRosPublisherImageRaw> m_spRawPublisher;
