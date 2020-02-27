@@ -132,8 +132,9 @@ int main(int argc, char** argv)
     info.width = 400;
     spCameraInfoManager->setCameraInfo(info);
 #endif //#ifdef TEST_SETCAMERAINFO
-    std::cout << "\nPress enter key to stop";
-    std::cin.get();
+
+    ros::spin();
+
     camera->StopStreaming();
     waitForFinish.lock();
     return 0;
