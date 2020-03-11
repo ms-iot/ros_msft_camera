@@ -21,11 +21,12 @@ int main(int argc, char** argv)
     privateNode.param("pub_queue_size", queueSize, PUBLISHER_QUEUE_SIZE);
     std::mutex waitForFinish;
     int32_t Width(640), Height(480);
-
+    std::string cameraInfoUrl("");
     privateNode.param("image_width", Width, 640);
     privateNode.param("image_height", Height, 480);
 
     privateNode.param("frame_id", frame_id, std::string("camera"));
+
     privateNode.getParam("videoDeviceId", videoSourcePath);
     if (videoSourcePath.empty())
     {
@@ -40,7 +41,45 @@ int main(int argc, char** argv)
             videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
         }
     }
-    std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
+    std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, frame_id, "");
+    if (privateNode.getParam("camera_info_url", cameraInfoUrl))
+    {
+        auto pos = cameraInfoUrl.find("file:");
+        if (pos != std::string::npos)
+        {
+            // this block of code is required because there is a bug in camerainfo manager url based api 
+            // when handling file:// prefix url with local paths like "e:\folder"
+            // We convert such paths to unc path.
+
+            pos += 5; // length of "file:"
+            int slashCnt=0;
+            while (cameraInfoUrl[++pos] == '/') slashCnt++;
+            if (cameraInfoUrl[pos] == '\\' && cameraInfoUrl[pos+1] == '\\')
+            {
+                // unc path that needs conversion
+                auto path = cameraInfoUrl.substr(pos+2);
+                cameraInfoUrl = std::string("file:////") + path;
+            }
+            else if (cameraInfoUrl[pos + 1] == ':')
+            {
+                //full drive path
+                auto path = cameraInfoUrl.substr(pos);
+                path[1] = '$'; // replace ':' with '$' to convert to unc path
+                cameraInfoUrl = std::string("file:////127.0.0.1\\")+path;
+            }
+            else if(slashCnt < 4) // if slashCnt >= 4 it is probably is an acceptable unc path
+            {
+                ROS_ERROR("camera info url for file must be a fully qualified drive path or unc path");
+            }
+
+        }
+
+        if (spCameraInfoManager->validateURL(cameraInfoUrl))
+        {
+            ROS_INFO("validated Camera info url: %s", cameraInfoUrl.c_str());
+            spCameraInfoManager->loadCameraInfo(cameraInfoUrl);
+        }
+    }
     WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
 
     bool resChangeInProgress = false;
