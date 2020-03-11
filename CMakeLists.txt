@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.3)
 project(win_camera)
 
 find_package(catkin REQUIRED COMPONENTS
-  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation)
+  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation roslint)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -101,3 +101,22 @@ install(FILES win_camera_nodelets.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
+
+#############
+## Testing ##
+#############
+
+roslint_cpp(
+  src/wincameranode.cpp src/wincameranodelet.cpp src/wincapture.cpp src/winrospublisher.cpp
+  )
+
+if (CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(testWinCamera test/winCamera.test
+    test/testWinCamera.cpp)
+  target_link_libraries(testWinCamera ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+  add_rostest_gtest(testWinCameraNoYaml test/WinCameraNoYaml.test
+    test/testWinCameraNoYaml.cpp)
+  target_link_libraries(testWinCameraNoYaml ${PROJECT_NAME} ${catkin_LIBRARIES})
+endif()

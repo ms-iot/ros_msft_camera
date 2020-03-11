@@ -35,6 +35,7 @@ namespace ros_win_camera
             std::string videoSourcePath = "";
             bool isDevice = true;
             std::string frame_id("camera");
+            std::string cameraInfoUrl("");
             privateNode.param("frame_rate", m_frameRate, 30.0f);
             privateNode.param("pub_queue_size", m_QueueSize, PUBLISHER_QUEUE_SIZE);
 
@@ -61,6 +62,14 @@ namespace ros_win_camera
             m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", m_QueueSize, frame_id, m_spCameraInfoManager.get());
 
             m_spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
+            if (privateNode.getParam("camera_info_url", cameraInfoUrl))
+            {
+                if (m_spCameraInfoManager->validateURL(cameraInfoUrl))
+                {
+                    m_spCameraInfoManager->loadCameraInfo(cameraInfoUrl);
+                }
+            }
+
             bool resChangeInProgress = false;
             auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
             {
