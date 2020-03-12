@@ -6,13 +6,11 @@
 #include <sensor_msgs/Image.h>
 #include <gtest/gtest.h>
 
-std::mutex gWaitMutex;
-
 TEST(WinCameraNode, getImage)
 {
     ros::NodeHandle node;
-    void (*cb)(const sensor_msgs::Image::ConstPtr & image)
-        = [](const sensor_msgs::Image::ConstPtr& image)
+    static std::mutex gWaitMutex;
+    void (*cb)(const sensor_msgs::Image::ConstPtr & image) = [](const sensor_msgs::Image::ConstPtr& image)
     {
         EXPECT_EQ("WinCamera2", image->header.frame_id);
         EXPECT_EQ(720, image->height);
@@ -32,12 +30,13 @@ TEST(WinCameraNode, getImage)
         ros::spinOnce();
         r.sleep();
     }
-
+    gWaitMutex.unlock();
 }
 
 TEST(WinCameraNodeTest, getCameraInfo)
 {
     ros::NodeHandle node;
+    static std::mutex gWaitMutex;
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
     {
@@ -70,6 +69,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
         ros::spinOnce();
         r.sleep();
     }
+    gWaitMutex.unlock();
 }
 
 int main(int argc, char** argv)

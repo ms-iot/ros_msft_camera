@@ -7,9 +7,9 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 
-std::mutex gWaitMutex;
 TEST(WinCameraNode, getImage)
 {
+    static std::mutex gWaitMutex;
     ros::NodeHandle node;
     ros::Rate r(10.0);
     void (*cb)(const sensor_msgs::Image::ConstPtr & image)
@@ -36,6 +36,7 @@ TEST(WinCameraNode, getImage)
 
 TEST(WinCameraNodeTest, getCameraInfo)
 {
+    static std::mutex gWaitMutex;
     ros::NodeHandle node;
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
