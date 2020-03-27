@@ -255,7 +255,7 @@ namespace ros_win_camera
             check_hresult(MFGetAttributeRatio(spMediaType.get(), MF_MT_FRAME_RATE, &FRNum, &FRDen));
             check_hresult(spMediaType->GetGUID(MF_MT_SUBTYPE,&subType));
             float rate = ((float)FRNum / (float)FRDen);
-            //_INFO("\nGot supported resolution :%dx%d@%d", m_u32Width, m_u32Height, (int)rate);
+            //_INFO("\nGot supported resolution :%dx%d@%d - %x-%x-%x-%x", m_u32Width, m_u32Height, (int)rate, subType.Data1,subType.Data2, subType.Data3,subType.Data4);
             bMatch = ((height == 0) || (width == 0) || ((m_u32Width == width) && (height == m_u32Height)));
             bMatch = bMatch && (((int)rate == (int)frameRate) || (frameRate == 0));
             bMatch = bMatch &&  (IsEqualGUID(preferredVideoSubType, subType) || IsEqualGUID(preferredVideoSubType, GUID_NULL));

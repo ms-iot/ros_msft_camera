@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.3)
 project(win_camera)
 
 find_package(catkin REQUIRED COMPONENTS
-  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation roslint)
+  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -32,6 +32,7 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
   )
 
+
 ## Declare a cpp library
 add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
 
@@ -41,9 +42,22 @@ add_library(win_camera_nodelet SHARED src/wincameranodelet.cpp)
 set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
 
 ## Declare a cpp executable
-add_executable(win_camera_node src/wincameranode.cpp)
-add_dependencies(win_camera_node win_camera)
+add_executable(win_camera_node src/wincameranode.cpp src/ffrtp.cpp)
+
 add_dependencies(win_camera_nodelet win_camera)
+
+
+find_program(NUGET nuget)
+## Ros Demo with Vision skills
+add_custom_target(NugetRestore ${NUGET} restore ${CMAKE_SOURCE_DIR}\\src\\packages.config -SolutionDirectory ${CMAKE_CURRENT_BINARY_DIR})
+set_property(TARGET win_camera_node
+    PROPERTY VS_PACKAGE_REFERENCES "FFmpeg.Nightly_20200311.0.0")
+		
+set_property(TARGET win_camera_node
+    PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\FFmpeg.Nightly.20200311.0.0\\build\\native\\FFmpeg.Nightly.targets")
+
+add_dependencies(win_camera_node win_camera NugetRestore)
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(win_camera

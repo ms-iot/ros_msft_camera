@@ -3,10 +3,12 @@
 #include "winrospublisher.h"
 #include <ros/ros.h>
 #include <string>
+#include "ffrtp.h"
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
 const int32_t PUBLISHER_QUEUE_SIZE = 4;
+auto videoFormat = MFVideoFormat_RGB24;
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "win_camera");
@@ -80,7 +82,10 @@ int main(int argc, char** argv)
             spCameraInfoManager->loadCameraInfo(cameraInfoUrl);
         }
     }
+    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
+    winrt::com_ptr<IMFSinkWriter> spSinkWriter;
+    spSinkWriter.attach(ConfigRTP(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000));
 
     bool resChangeInProgress = false;
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
@@ -94,7 +99,7 @@ int main(int argc, char** argv)
                 ThreadPool::RunAsync([camera, &Width, &Height, frameRate, spCameraInfoManager, &resChangeInProgress](IAsyncAction)
                     {
                         auto info = spCameraInfoManager->getCameraInfo();
-                        if (camera->ChangeCaptureConfig(info.width, info.height, frameRate, MFVideoFormat_ARGB32, true))
+                        if (camera->ChangeCaptureConfig(info.width, info.height, frameRate, videoFormat, true))
                         {
                             Height = info.height;
                             Width = info.width;
@@ -109,6 +114,7 @@ int main(int argc, char** argv)
             else
             {
                 rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+                check_hresult(spSinkWriter->WriteSample(0,pSample));
             }
         }
         else
@@ -140,12 +146,10 @@ int main(int argc, char** argv)
 
     waitForFinish.lock();
 
-    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     camera->StartStreaming();
-
     if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
     {
-        camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
+        camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera->StartStreaming();
         camera->AddSampleHandler(handler);
     }
@@ -155,7 +159,7 @@ int main(int argc, char** argv)
         camera->AddSampleHandler(compressedSampleHandler);
 
         camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
-        camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
+        camera1->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera1->StartStreaming();
         camera1->AddSampleHandler(handler);
     }
@@ -166,10 +170,11 @@ int main(int argc, char** argv)
     info.width = 400;
     spCameraInfoManager->setCameraInfo(info);
 #endif //#ifdef TEST_SETCAMERAINFO
-
+    
     ros::spin();
 
     camera->StopStreaming();
     waitForFinish.lock();
     return 0;
 }
+
