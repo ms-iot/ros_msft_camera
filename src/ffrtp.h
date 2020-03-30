@@ -21,17 +21,24 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
-IMFSinkWriter* ConfigRTP(uint32_t width, uint32_t height, float framerate, GUID outVideoFormat, GUID inVideoFormat, uint32_t bitrate);
+//IMFSinkWriter* ConfigRTP(uint32_t width, uint32_t height, float framerate, GUID outVideoFormat, GUID inVideoFormat, uint32_t bitrate, std::string destination);
 
 // The class that implements the callback interface.
 class SampleGrabberCB : public IMFSampleGrabberSinkCallback
 {
     long m_cRef;
-    AVFormatContext* avfctx;
+    std::vector<std::pair<std::string, AVFormatContext*>> m_aAvfctx;
     SampleGrabberCB() : m_cRef(1) { }
-
+    ~SampleGrabberCB() 
+    {
+        for(auto &avc : m_aAvfctx)
+        {
+            avformat_free_context(avc.second);
+        }
+        m_aAvfctx.clear();
+    }
 public:
-    void InitFFrtp(uint32_t width, uint32_t height);
+    void InitFFrtp(uint32_t width, uint32_t height, float frameRate, std::string destination);
     static HRESULT CreateInstance(uint32_t width, uint32_t height, SampleGrabberCB** ppCB);
 
     // IUnknown methods
@@ -52,4 +59,14 @@ public:
         LONGLONG llSampleTime, LONGLONG llSampleDuration, const BYTE* pSampleBuffer,
         DWORD dwSampleSize);
     STDMETHODIMP OnShutdown();
+};
+class RTPStreamer
+{
+    winrt::com_ptr<IMFSinkWriter> spSinkWriter;
+    winrt::com_ptr<SampleGrabberCB> spSampleGrabberCB;
+public:
+    RTPStreamer(uint32_t width, uint32_t height, float framerate, GUID outVideoFormat, GUID inVideoFormat, uint32_t bitrate, std::string destination);
+    void AddDestination(std::string destination);
+    void RemoveDestination(std::string destination) {}
+    void WritePacket(IMFSample* pSample) { check_hresult( spSinkWriter->WriteSample(0,pSample)); }
 };

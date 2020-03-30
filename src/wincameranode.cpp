@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <string>
 #include "ffrtp.h"
+extern uint32_t g_dropCount;
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
@@ -85,8 +86,8 @@ int main(int argc, char** argv)
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
     winrt::com_ptr<IMFSinkWriter> spSinkWriter;
-    spSinkWriter.attach(ConfigRTP(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000));
-
+    //spSinkWriter.attach(ConfigRTP(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000, "rtp://127.0.0.1:49995"));
+    RTPStreamer streamer(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000, "127.0.0.1:49995");
     bool resChangeInProgress = false;
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
@@ -114,7 +115,17 @@ int main(int argc, char** argv)
             else
             {
                 rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
-                check_hresult(spSinkWriter->WriteSample(0,pSample));
+                LONGLONG llSampleTime;
+                auto tm = MFGetSystemTime();
+                pSample->GetSampleTime(&llSampleTime);
+                /*if (g_dropCount)
+                {
+                    g_dropCount--;
+                }
+                else*/
+                {
+                    streamer.WritePacket(pSample);
+                }
             }
         }
         else
