@@ -3,13 +3,15 @@
 #include "winrospublisher.h"
 #include <ros/ros.h>
 #include <string>
-#include "ffrtp.h"
+
+#include "VideoStreamer.h"
 extern uint32_t g_dropCount;
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
 const int32_t PUBLISHER_QUEUE_SIZE = 4;
 auto videoFormat = MFVideoFormat_RGB24;
+#define TEST_RTP_LOOPBACK
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "win_camera");
@@ -74,7 +76,6 @@ int main(int argc, char** argv)
             {
                 ROS_ERROR("camera info url for file must be a fully qualified drive path or unc path");
             }
-
         }
 
         if (spCameraInfoManager->validateURL(cameraInfoUrl))
@@ -86,8 +87,39 @@ int main(int argc, char** argv)
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
     WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
     winrt::com_ptr<IMFSinkWriter> spSinkWriter;
-    //spSinkWriter.attach(ConfigRTP(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000, "rtp://127.0.0.1:49995"));
-    RTPStreamer streamer(Width, Height, frameRate, MFVideoFormat_H264, videoFormat, 1000000, "127.0.0.1:49995");
+    std::string destination,protocol;
+    privateNode.param("StreamOutDestination",destination, std::string(""));
+    privateNode.param("StreamOutProtocol", protocol, std::string("rtp"));
+    winrt::com_ptr<VideoStreamer> streamer;
+#ifndef TEST_RTP_LOOPBACK
+    if (!destination.empty())
+#endif
+    {
+        check_hresult(VideoStreamer::CreateInstance(streamer.put()));
+        streamer->ConfigEncoder(Width, Height, frameRate, videoFormat, MFVideoFormat_H264, 1000000);
+        streamer->AddDestination(destination);
+#ifdef TEST_RTP_LOOPBACK
+#define RTSP_TEST
+#ifdef RTSP_TEST
+        system("start cmd /c ffplay.exe -rtsp_flags listen rtsp://127.0.0.1:54455");
+        ThreadPool::RunAsync([&](IAsyncAction) 
+            {
+            streamer->AddDestination("127.0.0.1:54455", "rtsp");
+            });
+#else
+        streamer->AddDestination("127.0.0.1:5445","rtp");
+        char buf[20000];
+        streamer->GenerateSDP(buf,20000, destination);
+        printf("sdp:\n%s\n", buf);
+        FILE* fsdp;
+        fopen_s(&fsdp, "test.sdp", "w");
+        fprintf(fsdp, "%s", buf);
+        fclose(fsdp);
+        system("start cmd /c C:\\Tools\\ffmpeg-20200324-e5d25d1-win64-static\\bin\\ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
+
+#endif
+#endif
+    }
     bool resChangeInProgress = false;
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
@@ -118,13 +150,18 @@ int main(int argc, char** argv)
                 LONGLONG llSampleTime;
                 auto tm = MFGetSystemTime();
                 pSample->GetSampleTime(&llSampleTime);
-                /*if (g_dropCount)
+#ifdef TIGHT_LATENCY_CONTROL
+                if (g_dropCount)
                 {
                     g_dropCount--;
                 }
-                else*/
+                else
+#endif
                 {
-                    streamer.WritePacket(pSample);
+                    if (streamer)
+                    {
+                        streamer->WritePacket(pSample);
+                    }
                 }
             }
         }

@@ -42,7 +42,7 @@ add_library(win_camera_nodelet SHARED src/wincameranodelet.cpp)
 set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
 
 ## Declare a cpp executable
-add_executable(win_camera_node src/wincameranode.cpp src/ffrtp.cpp)
+add_executable(win_camera_node src/wincameranode.cpp src/VideoStreamer.cpp)
 
 add_dependencies(win_camera_nodelet win_camera)
 

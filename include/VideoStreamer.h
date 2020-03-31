@@ -21,15 +21,21 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 }
 
-//IMFSinkWriter* ConfigRTP(uint32_t width, uint32_t height, float framerate, GUID outVideoFormat, GUID inVideoFormat, uint32_t bitrate, std::string destination);
-
 // The class that implements the callback interface.
-class SampleGrabberCB : public IMFSampleGrabberSinkCallback
+class VideoStreamer : public IMFSampleGrabberSinkCallback
 {
     long m_cRef;
-    std::vector<std::pair<std::string, AVFormatContext*>> m_aAvfctx;
-    SampleGrabberCB() : m_cRef(1) { }
-    ~SampleGrabberCB() 
+    std::map<std::string, AVFormatContext*> m_aAvfctx;
+    static bool s_FFmpegInitDone;
+    winrt::com_ptr<IMFSinkWriter> m_spSinkWriter;
+    uint32_t m_width;
+    uint32_t m_height;
+    float m_frameRate;
+    uint32_t m_bitrate;
+    GUID m_outVideoFormat;
+
+    VideoStreamer() : m_cRef(1) { }
+    ~VideoStreamer() 
     {
         for(auto &avc : m_aAvfctx)
         {
@@ -38,8 +44,8 @@ class SampleGrabberCB : public IMFSampleGrabberSinkCallback
         m_aAvfctx.clear();
     }
 public:
-    void InitFFrtp(uint32_t width, uint32_t height, float frameRate, std::string destination);
-    static HRESULT CreateInstance(uint32_t width, uint32_t height, SampleGrabberCB** ppCB);
+    
+    static HRESULT CreateInstance( VideoStreamer** ppCB);
 
     // IUnknown methods
     STDMETHODIMP QueryInterface(REFIID iid, void** ppv);
@@ -59,14 +65,9 @@ public:
         LONGLONG llSampleTime, LONGLONG llSampleDuration, const BYTE* pSampleBuffer,
         DWORD dwSampleSize);
     STDMETHODIMP OnShutdown();
-};
-class RTPStreamer
-{
-    winrt::com_ptr<IMFSinkWriter> spSinkWriter;
-    winrt::com_ptr<SampleGrabberCB> spSampleGrabberCB;
-public:
-    RTPStreamer(uint32_t width, uint32_t height, float framerate, GUID outVideoFormat, GUID inVideoFormat, uint32_t bitrate, std::string destination);
-    void AddDestination(std::string destination);
-    void RemoveDestination(std::string destination) {}
-    void WritePacket(IMFSample* pSample) { check_hresult( spSinkWriter->WriteSample(0,pSample)); }
+    void ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate);
+    void AddDestination(std::string destination, std::string protocol = "rtp");
+    void RemoveDestination(std::string destination);
+    void WritePacket(IMFSample* pSample) { winrt::check_hresult( m_spSinkWriter->WriteSample(0,pSample)); }
+    void GenerateSDP(char* buf, size_t maxSize, std::string destination);
 };
