@@ -102,9 +102,11 @@ int main(int argc, char** argv)
 #define RTSP_TEST
 #ifdef RTSP_TEST
         system("start cmd /c ffplay.exe -rtsp_flags listen rtsp://127.0.0.1:54455");
+
         ThreadPool::RunAsync([&](IAsyncAction) 
             {
-            streamer->AddDestination("127.0.0.1:54455", "rtsp");
+                // start in a separate thread as rtsp push protocol will block on connect to server 
+                streamer->AddDestination("127.0.0.1:54455", "rtsp");
             });
 #else
         streamer->AddDestination("127.0.0.1:5445","rtp");
