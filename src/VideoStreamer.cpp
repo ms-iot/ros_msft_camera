@@ -1,14 +1,10 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
-#include<Windows.h>
-#include <synchapi.h>
-#include "wincapture.h"
-#include "winrospublisher.h"
-#include "VideoStreamer.h"
-#include <strmif.h>
-#include <Codecapi.h>
+#include "VideoStreamerInternal.h"
+
 #pragma comment(lib, "avformat.lib")
 #pragma comment(lib, "avutil.lib")
 #pragma comment(lib, "avcodec.lib")
+using namespace winrt;
 #ifdef TIGHT_LATENCY_CONTROL
     uint32_t g_dropCount;
 #endif
@@ -25,10 +21,23 @@ std::map <GUID, AVCodecID, GUIDComparer> g_CodecMapMFtoFF =
   {MFVideoFormat_MPEG2, AV_CODEC_ID_MPEG2VIDEO}
 };
 
-bool VideoStreamer::s_FFmpegInitDone = false;
+bool VideoStreamerFFmpeg::s_FFmpegInitDone = false;
 
-// Create a new instance of the object.
-HRESULT VideoStreamer::CreateInstance(VideoStreamer** ppCB)
+void VideoStreamerBase::WritePacket(IMFSample* pSample)
+{
+    winrt::check_hresult(m_spSinkWriter->WriteSample(0, pSample));
+}
+
+VideoStreamerFFmpeg::~VideoStreamerFFmpeg()
+{
+    for (auto& avc : m_aAvfctx)
+    {
+        avformat_free_context(avc.second);
+    }
+    m_aAvfctx.clear();
+}
+
+void VideoStreamerFFmpeg::InitFFmpeg()
 {
     if (!s_FFmpegInitDone)
     {
@@ -37,33 +46,47 @@ HRESULT VideoStreamer::CreateInstance(VideoStreamer** ppCB)
         avformat_network_init();
         s_FFmpegInitDone = true;
     }
-    *ppCB = new (std::nothrow) VideoStreamer();
 
-    if (ppCB == NULL)
+}
+
+HRESULT VideoStreamerFFmpeg::CreateInstance(IVideoStreamer** ppVideoStreamer)
+{
+    VideoStreamerFFmpeg::InitFFmpeg();
+    //*ppVideoStreamer = new (std::nothrow) VideoStreamerFFmpeg();
+    auto vs = new (std::nothrow) VideoStreamerFFmpeg();
+    //*ppVideoStreamer = new (std::nothrow) VideoStreamerFFmpeg();
+    vs->QueryInterface(__uuidof(IVideoStreamer), (void**)ppVideoStreamer);
+    if (ppVideoStreamer == NULL)
     {
         return E_OUTOFMEMORY;
     }
-
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::QueryInterface(REFIID riid, void** ppv)
+// Create a new instance of the object.
+HRESULT CreateFFVideoStreamer(IVideoStreamer** ppVideoStreamer)
+{
+    return VideoStreamerFFmpeg::CreateInstance(ppVideoStreamer);
+}
+
+STDMETHODIMP VideoStreamerBase::QueryInterface(REFIID riid, void** ppv)
 {
     static const QITAB qit[] =
     {
-        QITABENT(VideoStreamer, IMFSampleGrabberSinkCallback),
-        QITABENT(VideoStreamer, IMFClockStateSink),
+        QITABENT(VideoStreamerBase, IMFSampleGrabberSinkCallback),
+        QITABENT(VideoStreamerBase, IMFClockStateSink),
+        QITABENT(VideoStreamerBase, IVideoStreamer),
         { 0 }
     };
     return QISearch(this, qit, riid, ppv);
 }
 
-STDMETHODIMP_(ULONG) VideoStreamer::AddRef()
+STDMETHODIMP_(ULONG) VideoStreamerBase::AddRef()
 {
     return InterlockedIncrement(&m_cRef);
 }
 
-STDMETHODIMP_(ULONG) VideoStreamer::Release()
+STDMETHODIMP_(ULONG) VideoStreamerBase::Release()
 {
     ULONG cRef = InterlockedDecrement(&m_cRef);
     if (cRef == 0)
@@ -79,39 +102,39 @@ STDMETHODIMP_(ULONG) VideoStreamer::Release()
 // In these example, the IMFClockStateSink methods do not perform any actions. 
 // You can use these methods to track the state of the sample grabber sink.
 
-STDMETHODIMP VideoStreamer::OnClockStart(MFTIME hnsSystemTime, LONGLONG llClockStartOffset)
+STDMETHODIMP VideoStreamerBase::OnClockStart(MFTIME hnsSystemTime, LONGLONG llClockStartOffset)
 {
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnClockStop(MFTIME hnsSystemTime)
+STDMETHODIMP VideoStreamerBase::OnClockStop(MFTIME hnsSystemTime)
 {
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnClockPause(MFTIME hnsSystemTime)
+STDMETHODIMP VideoStreamerBase::OnClockPause(MFTIME hnsSystemTime)
 {
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnClockRestart(MFTIME hnsSystemTime)
+STDMETHODIMP VideoStreamerBase::OnClockRestart(MFTIME hnsSystemTime)
 {
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnClockSetRate(MFTIME hnsSystemTime, float flRate)
+STDMETHODIMP VideoStreamerBase::OnClockSetRate(MFTIME hnsSystemTime, float flRate)
 {
     return S_OK;
 }
 
 // IMFSampleGrabberSink methods.
 
-STDMETHODIMP VideoStreamer::OnSetPresentationClock(IMFPresentationClock* pClock)
+STDMETHODIMP VideoStreamerBase::OnSetPresentationClock(IMFPresentationClock* pClock)
 {
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnProcessSample(REFGUID guidMajorMediaType, DWORD dwSampleFlags,
+STDMETHODIMP VideoStreamerFFmpeg::OnProcessSample(REFGUID guidMajorMediaType, DWORD dwSampleFlags,
     LONGLONG llSampleTime, LONGLONG llSampleDuration, const BYTE* pSampleBuffer,
     DWORD dwSampleSize)
 {
@@ -141,13 +164,13 @@ STDMETHODIMP VideoStreamer::OnProcessSample(REFGUID guidMajorMediaType, DWORD dw
     return S_OK;
 }
 
-STDMETHODIMP VideoStreamer::OnShutdown()
+STDMETHODIMP VideoStreamerBase::OnShutdown()
 {
     return S_OK;
 }
 
 
-void VideoStreamer::ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate)
+void VideoStreamerBase::ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate)
 {
     winrt::com_ptr<IMFMediaType> spOutType, spInType;
     
@@ -193,7 +216,7 @@ void VideoStreamer::ConfigEncoder(uint32_t width, uint32_t height, float framera
 
 }
 
-void VideoStreamer::AddDestination(std::string destination, std::string protocol)
+void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string protocol)
 {
     AVFormatContext* pAvfctx;
     if (m_aAvfctx.find(destination) != m_aAvfctx.end())
@@ -222,12 +245,12 @@ void VideoStreamer::AddDestination(std::string destination, std::string protocol
     m_aAvfctx.insert({ destination, pAvfctx });
 }
 
-void VideoStreamer::RemoveDestination(std::string destination)
+void VideoStreamerFFmpeg::RemoveDestination(std::string destination)
 {
     m_aAvfctx.erase(destination);
 }
 
-void VideoStreamer::GenerateSDP(char *buf, size_t maxSize, std::string destination)
+void VideoStreamerFFmpeg::GenerateSDP(char *buf, size_t maxSize, std::string destination)
 {
     AVFormatContext* pAvfctx;
     AVCodecID codec_id = g_CodecMapMFtoFF[m_outVideoFormat];

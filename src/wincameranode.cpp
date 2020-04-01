@@ -90,14 +90,15 @@ int main(int argc, char** argv)
     std::string destination,protocol;
     privateNode.param("StreamOutDestination",destination, std::string(""));
     privateNode.param("StreamOutProtocol", protocol, std::string("rtp"));
-    winrt::com_ptr<VideoStreamer> streamer;
+    winrt::com_ptr<IVideoStreamer> streamer;
 #ifndef TEST_RTP_LOOPBACK
     if (!destination.empty())
 #endif
     {
-        check_hresult(VideoStreamer::CreateInstance(streamer.put()));
+        //check_hresult(VideoStreamer::CreateInstance(streamer.put()));
+        check_hresult(CreateFFVideoStreamer(streamer.put()));
         streamer->ConfigEncoder(Width, Height, frameRate, videoFormat, MFVideoFormat_H264, 1000000);
-        streamer->AddDestination(destination);
+        if(!destination.empty()) streamer->AddDestination(destination);
 #ifdef TEST_RTP_LOOPBACK
 #define RTSP_TEST
 #ifdef RTSP_TEST
