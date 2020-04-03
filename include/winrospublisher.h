@@ -98,7 +98,7 @@ namespace ros_win_camera
                     ros_image->header = m_cameraInfo.header;
                     ros_image->height = u32Height;
                     ros_image->width = u32Width;
-                    ros_image->encoding = enc::BGR8;
+                    ros_image->encoding = enc::BGRA8;
                     ros_image->is_bigendian = !*((uint8_t*)&littleEndian);
 
                     check_hresult(spMediaBuf2d->Lock2D(&pix, &Stride));

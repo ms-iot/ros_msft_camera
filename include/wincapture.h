@@ -19,6 +19,8 @@ namespace ros_win_camera
 
         bool ChangeCaptureConfig(int32_t width, int32_t height, float frameRate, GUID preferredVideoSubType, bool bForceConversion = false);
 
+        void GetCaptureConfig(uint32_t& width, uint32_t& height, float& framerate, GUID& videoSubtype);
+
         // IUnknown methods
         STDMETHODIMP QueryInterface(REFIID iid, void** ppv)
         {

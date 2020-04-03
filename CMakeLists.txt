@@ -10,7 +10,7 @@ set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set (CMAKE_CXX_EXTENSIONS FALSE)
 
-roslint_cpp()
+#roslint_cpp()
 add_message_files(
    FILES
    MFSample.msg
@@ -42,22 +42,21 @@ add_library(win_camera_nodelet SHARED src/wincameranodelet.cpp)
 set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
 
 ## Declare a cpp executable
-add_executable(win_camera_node src/wincameranode.cpp src/VideoStreamer.cpp)
+add_executable(win_camera_node src/wincameranode.cpp src/packages.config)
 
 add_dependencies(win_camera_nodelet win_camera)
 
-
 find_program(NUGET nuget)
 ## Ros Demo with Vision skills
-add_custom_target(NugetRestore ${NUGET} restore ${CMAKE_SOURCE_DIR}\\src\\packages.config -SolutionDirectory ${CMAKE_CURRENT_BINARY_DIR})
+add_custom_target(NugetRestore ${NUGET} restore ${CMAKE_SOURCE_DIR}\\src\\packages.config -SolutionDirectory ${CMAKE_CURRENT_BINARY_DIR} -ConfigFile ${CMAKE_SOURCE_DIR}\\src\\nuget.config)
+
 set_property(TARGET win_camera_node
-    PROPERTY VS_PACKAGE_REFERENCES "FFmpeg.Nightly_20200311.0.0")
+    PROPERTY VS_PACKAGE_REFERENCES "VideoStreamer_0.1.0")
 		
 set_property(TARGET win_camera_node
-    PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\FFmpeg.Nightly.20200311.0.0\\build\\native\\FFmpeg.Nightly.targets")
+    PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\VideoStreamer.0.1.0\\build\\native\\VideoStreamer.targets")
 
 add_dependencies(win_camera_node win_camera NugetRestore)
-
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(win_camera

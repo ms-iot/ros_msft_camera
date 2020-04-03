@@ -10,7 +10,10 @@
 #include <winrt\Windows.Foundation.Collections.h>
 #include <winrt\Windows.Devices.Enumeration.h>
 #include <winrt\Windows.System.Threading.h>
-
+//#define TIGHT_LATENCY_CONTROL
+#ifdef TIGHT_LATENCY_CONTROL
+#define MAX_SOURCE_LATENCY 60
+#endif
 //EXTERN_C const IID IID_IVideoStreamer;
 MIDL_INTERFACE("022C6CB9-64D5-472F-8753-76382CC5F4DA")
 IVideoStreamer : public IUnknown

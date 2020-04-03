@@ -1,9 +1,7 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
 #include "VideoStreamerInternal.h"
-
+#include <iostream>
 #pragma comment(lib, "avformat.lib")
-#pragma comment(lib, "avutil.lib")
-#pragma comment(lib, "avcodec.lib")
 using namespace winrt;
 #ifdef TIGHT_LATENCY_CONTROL
     uint32_t g_dropCount;
@@ -41,8 +39,8 @@ void VideoStreamerFFmpeg::InitFFmpeg()
 {
     if (!s_FFmpegInitDone)
     {
-        avcodec_register_all();
-        av_register_all();
+        //avcodec_register_all();
+        //av_register_all();
         avformat_network_init();
         s_FFmpegInitDone = true;
     }
@@ -138,6 +136,8 @@ STDMETHODIMP VideoStreamerFFmpeg::OnProcessSample(REFGUID guidMajorMediaType, DW
     LONGLONG llSampleTime, LONGLONG llSampleDuration, const BYTE* pSampleBuffer,
     DWORD dwSampleSize)
 {
+    auto tm = MFGetSystemTime();
+    std::cout << "\t SW Delay:" << (tm - llSampleTime)/10000;
 #ifdef TIGHT_LATENCY_CONTROL
     auto tm = MFGetSystemTime();
     //std::cout << "\nDelay:" << (tm - llSampleTime)/10000;
@@ -206,14 +206,22 @@ void VideoStreamerBase::ConfigEncoder(uint32_t width, uint32_t height, float fra
     check_hresult(spSinkActivate->SetUINT32(MF_SAMPLEGRABBERSINK_IGNORE_CLOCK, TRUE));
     check_hresult(spSinkActivate->ActivateObject(__uuidof(IMFMediaSink), spSink.put_void()));
     winrt::com_ptr<IMFAttributes> spSWAttributes;
-    check_hresult(MFCreateAttributes(spSWAttributes.put(), 1));
+    check_hresult(MFCreateAttributes(spSWAttributes.put(), 2));
     check_hresult(spSWAttributes->SetUINT32(MF_LOW_LATENCY, TRUE));
+    check_hresult(spSWAttributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, FALSE));
     check_hresult(MFCreateSinkWriterFromMediaSink(spSink.get(), spSWAttributes.get(), m_spSinkWriter.put()));
-
     check_hresult(m_spSinkWriter->SetInputMediaType(0, spInType.get(), nullptr));
 
     check_hresult(m_spSinkWriter->BeginWriting());
-
+    winrt::com_ptr<IMFSinkWriterEx> spSinkWriterEx;
+    int i = 0;
+    GUID cagtegory;
+    winrt::com_ptr<IMFTransform> spTranform;
+    while (SUCCEEDED(m_spSinkWriter.as<IMFSinkWriterEx>()->GetTransformForStream(0, i++, &cagtegory, spTranform.put())))
+    {
+        printf("\nTranform %d: %x-%x-%x-%x%x%x%x", i - 1, cagtegory.Data1, cagtegory.Data2, cagtegory.Data3, cagtegory.Data4[0], cagtegory.Data4[1], cagtegory.Data4[2], cagtegory.Data4[3]);
+    }
+    printf("\nTotal: %d",i);
 }
 
 void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string protocol)
@@ -230,7 +238,7 @@ void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string pr
     avformat_alloc_output_context2(&pAvfctx, fmt, fmt->name,
         destString.c_str());
 
-    avio_open(&pAvfctx->pb, pAvfctx->filename, AVIO_FLAG_WRITE);
+    avio_open(&pAvfctx->pb, pAvfctx->url, AVIO_FLAG_WRITE);
 
     struct AVStream* stream = avformat_new_stream(pAvfctx, /*codec*/nullptr);
     stream->codecpar->bit_rate = m_bitrate;
@@ -260,16 +268,16 @@ void VideoStreamerFFmpeg::GenerateSDP(char *buf, size_t maxSize, std::string des
     avformat_alloc_output_context2(&pAvfctx, fmt, fmt->name,
         destString.c_str());
 
-    printf("Writing to %s\n", pAvfctx->filename);
+    printf("Writing to %s\n", pAvfctx->url);
 
-    avio_open(&pAvfctx->pb, pAvfctx->filename, AVIO_FLAG_WRITE);
+    avio_open(&pAvfctx->pb, pAvfctx->url, AVIO_FLAG_WRITE);
 
     struct AVStream* stream = avformat_new_stream(pAvfctx, /*codec*/nullptr);
     stream->codecpar->bit_rate = m_bitrate;
     stream->codecpar->width = m_width;
     stream->codecpar->height = m_height;
     stream->codecpar->codec_id = g_CodecMapMFtoFF[m_outVideoFormat];;
-    stream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+    stream->codecpar->codec_type = AVMediaType::AVMEDIA_TYPE_VIDEO;
     stream->time_base.num = 100;
     stream->time_base.den = (int)(m_frameRate * 100);
 

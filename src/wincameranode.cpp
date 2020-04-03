@@ -10,7 +10,7 @@ using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
 const int32_t PUBLISHER_QUEUE_SIZE = 4;
-auto videoFormat = MFVideoFormat_RGB24;
+auto videoFormat = MFVideoFormat_ARGB32;
 #define TEST_RTP_LOOPBACK
 int main(int argc, char** argv)
 {
@@ -27,8 +27,8 @@ int main(int argc, char** argv)
     std::mutex waitForFinish;
     int32_t Width(640), Height(480);
     std::string cameraInfoUrl("");
-    privateNode.param("image_width", Width, 640);
-    privateNode.param("image_height", Height, 480);
+    privateNode.param("image_width", Width, 1280);
+    privateNode.param("image_height", Height, 720);
 
     privateNode.param("frame_id", frame_id, std::string("camera"));
 
@@ -90,39 +90,6 @@ int main(int argc, char** argv)
     std::string destination,protocol;
     privateNode.param("StreamOutDestination",destination, std::string(""));
     privateNode.param("StreamOutProtocol", protocol, std::string("rtp"));
-    winrt::com_ptr<IVideoStreamer> streamer;
-#ifndef TEST_RTP_LOOPBACK
-    if (!destination.empty())
-#endif
-    {
-        //check_hresult(VideoStreamer::CreateInstance(streamer.put()));
-        check_hresult(CreateFFVideoStreamer(streamer.put()));
-        streamer->ConfigEncoder(Width, Height, frameRate, videoFormat, MFVideoFormat_H264, 1000000);
-        if(!destination.empty()) streamer->AddDestination(destination);
-#ifdef TEST_RTP_LOOPBACK
-#define RTSP_TEST
-#ifdef RTSP_TEST
-        system("start cmd /c ffplay.exe -rtsp_flags listen rtsp://127.0.0.1:54455");
-
-        ThreadPool::RunAsync([&](IAsyncAction) 
-            {
-                // start in a separate thread as rtsp push protocol will block on connect to server 
-                streamer->AddDestination("127.0.0.1:54455", "rtsp");
-            });
-#else
-        streamer->AddDestination("127.0.0.1:5445","rtp");
-        char buf[20000];
-        streamer->GenerateSDP(buf,20000, destination);
-        printf("sdp:\n%s\n", buf);
-        FILE* fsdp;
-        fopen_s(&fsdp, "test.sdp", "w");
-        fprintf(fsdp, "%s", buf);
-        fclose(fsdp);
-        system("start cmd /c C:\\Tools\\ffmpeg-20200324-e5d25d1-win64-static\\bin\\ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
-
-#endif
-#endif
-    }
     bool resChangeInProgress = false;
     auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
@@ -150,22 +117,6 @@ int main(int argc, char** argv)
             else
             {
                 rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
-                LONGLONG llSampleTime;
-                auto tm = MFGetSystemTime();
-                pSample->GetSampleTime(&llSampleTime);
-#ifdef TIGHT_LATENCY_CONTROL
-                if (g_dropCount)
-                {
-                    g_dropCount--;
-                }
-                else
-#endif
-                {
-                    if (streamer)
-                    {
-                        streamer->WritePacket(pSample);
-                    }
-                }
             }
         }
         else
@@ -182,8 +133,78 @@ int main(int argc, char** argv)
     {
         if (pSample)
         {
-            ROS_INFO("Received SAmple compressed\n");
+            //ROS_INFO("Received SAmple compressed\n");
+        }
+        else
+        {
+            if ((HRESULT)ex.code().value == MF_E_END_OF_STREAM)
+            {
+                ROS_INFO("\nEOS");
+            }
+            waitForFinish.unlock();
+        }
+    };
+    GUID nativeVideoFormat;
+    camera->ChangeCaptureConfig(Width, Height, frameRate, GUID_NULL);
+    camera->GetCaptureConfig((uint32_t&)Width, (uint32_t&)Height, frameRate, nativeVideoFormat);
 
+    winrt::com_ptr<IVideoStreamer> streamer;
+#ifndef TEST_RTP_LOOPBACK
+    if (!destination.empty())
+#endif
+    {
+        check_hresult(CreateFFVideoStreamer(streamer.put()));
+        streamer->ConfigEncoder(Width, Height, frameRate, nativeVideoFormat, MFVideoFormat_H264, 1000000);
+        if (!destination.empty()) streamer->AddDestination(destination);
+#ifdef TEST_RTP_LOOPBACK
+#define RTSP_TEST
+#ifdef RTSP_TEST
+        system("start cmd /c ffplay.exe -rtsp_flags listen -fflags nobuffer rtsp://127.0.0.1:54455");
+
+        ThreadPool::RunAsync([&](IAsyncAction)
+            {
+                // start in a separate thread as rtsp push protocol will block on connect to server 
+                streamer->AddDestination("127.0.0.1:54455", "rtsp");
+            });
+#else
+        streamer->AddDestination("127.0.0.1:5445", "rtp");
+        char buf[20000];
+        streamer->GenerateSDP(buf, 20000, destination);
+        printf("sdp:\n%s\n", buf);
+        FILE* fsdp;
+        fopen_s(&fsdp, "test.sdp", "w");
+        fprintf(fsdp, "%s", buf);
+        fclose(fsdp);
+        system("start cmd /c C:\\Tools\\ffmpeg-20200324-e5d25d1-win64-static\\bin\\ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
+
+#endif
+#endif
+    }
+
+    auto streamingSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
+    {
+        if (pSample)
+        {
+            LONGLONG llSampleTime;
+            auto tm = MFGetSystemTime();
+            pSample->GetSampleTime(&llSampleTime);
+            std::cout << "\rDelay source:" << (tm - llSampleTime) / 10000;
+#ifdef TIGHT_LATENCY_CONTROL
+            LONGLONG llSampleTime;
+            auto tm = MFGetSystemTime();
+            pSample->GetSampleTime(&llSampleTime);
+            if (g_dropCount)
+            {
+                g_dropCount--;
+            }
+            else
+#endif
+            {
+                if (streamer)
+                {
+                    streamer->WritePacket(pSample);
+                }
+            }
         }
         else
         {
@@ -197,23 +218,26 @@ int main(int argc, char** argv)
 
     waitForFinish.lock();
 
-    camera->StartStreaming();
-    if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
+    //camera->StartStreaming();
+#if 1
+    /*if(!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
     {
         camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera->StartStreaming();
         camera->AddSampleHandler(handler);
     }
-    else
+    else*/
     {
         camera->StartStreaming();
-        camera->AddSampleHandler(compressedSampleHandler);
+        //camera->AddSampleHandler(compressedSampleHandler);
+        camera->AddSampleHandler(streamingSampleHandler);
 
         camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
         camera1->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera1->StartStreaming();
         camera1->AddSampleHandler(handler);
     }
+#endif
 #ifdef TEST_SETCAMERAINFO
     Sleep(10000);
     auto info = spCameraInfoManager->getCameraInfo();

@@ -269,6 +269,17 @@ namespace ros_win_camera
         return bMatch;
 
     }
+    void WindowsMFCapture::GetCaptureConfig(uint32_t& width, uint32_t& height, float& framerate, GUID& videoSubtype)
+    {
+        winrt::com_ptr<IMFMediaType> spMT;
+        spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put());
+        check_hresult(MFGetAttributeSize(spMT.get(), MF_MT_FRAME_SIZE, &width, &height));
+        uint32_t Num, Denom;
+        check_hresult(MFGetAttributeRatio(spMT.get(), MF_MT_FRAME_RATE, &Num, &Denom));
+        framerate = (float)Num / (float)Denom;
+        check_hresult(spMT->GetGUID(MF_MT_SUBTYPE, &videoSubtype));
+
+    }
     bool WindowsMFCapture::ChangeCaptureConfig(int32_t width, int32_t height, float frameRate, GUID preferredVideoSubType, bool bForceConversion /*= false*/)
     {
         std::lock_guard g(m_apiGuardMutex);
@@ -295,7 +306,7 @@ namespace ros_win_camera
                 m_u32Height = height;
 
             }
-            if (!FindMatchingMediaType(spMediaType.put(), width, height, frameRate, preferredVideoSubType))
+            else if (!FindMatchingMediaType(spMediaType.put(), width, height, frameRate, preferredVideoSubType))
             {
                 if (bForceConversion)
                 {
