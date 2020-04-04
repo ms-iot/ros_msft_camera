@@ -4,8 +4,10 @@
 #include <ros/ros.h>
 #include <string>
 
+#ifdef ENABLE_VIDEOSTREAMING
 #include "VideoStreamer.h"
 extern uint32_t g_dropCount;
+#endif
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
@@ -144,6 +146,7 @@ int main(int argc, char** argv)
             waitForFinish.unlock();
         }
     };
+#ifdef ENABLE_VIDEOSTREAMING
     GUID nativeVideoFormat;
     camera->ChangeCaptureConfig(Width, Height, frameRate, GUID_NULL);
     camera->GetCaptureConfig((uint32_t&)Width, (uint32_t&)Height, frameRate, nativeVideoFormat);
@@ -215,11 +218,10 @@ int main(int argc, char** argv)
             waitForFinish.unlock();
         }
     };
-
+#endif
     waitForFinish.lock();
 
     //camera->StartStreaming();
-#if 1
     /*if(!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
     {
         camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
@@ -227,9 +229,9 @@ int main(int argc, char** argv)
         camera->AddSampleHandler(handler);
     }
     else*/
+#ifdef ENABLE_VIDEOSTREAMING
     {
         camera->StartStreaming();
-        //camera->AddSampleHandler(compressedSampleHandler);
         camera->AddSampleHandler(streamingSampleHandler);
 
         camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
@@ -237,6 +239,12 @@ int main(int argc, char** argv)
         camera1->StartStreaming();
         camera1->AddSampleHandler(handler);
     }
+#else
+    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), true));
+    camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
+    camera->StartStreaming();
+    camera->AddSampleHandler(handler);
+
 #endif
 #ifdef TEST_SETCAMERAINFO
     Sleep(10000);

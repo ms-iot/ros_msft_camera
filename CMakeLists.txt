@@ -46,8 +46,12 @@ add_executable(win_camera_node src/wincameranode.cpp src/packages.config)
 
 add_dependencies(win_camera_nodelet win_camera)
 
+add_dependencies(win_camera_node win_camera)
+
+if (ENABLE_VIDEOSTREAMING)
+add_compile_definitions(ENABLE_VIDEOSTREAMING)
 find_program(NUGET nuget)
-## Ros Demo with Vision skills
+
 add_custom_target(NugetRestore ${NUGET} restore ${CMAKE_SOURCE_DIR}\\src\\packages.config -SolutionDirectory ${CMAKE_CURRENT_BINARY_DIR} -ConfigFile ${CMAKE_SOURCE_DIR}\\src\\nuget.config)
 
 set_property(TARGET win_camera_node
@@ -55,8 +59,9 @@ set_property(TARGET win_camera_node
 		
 set_property(TARGET win_camera_node
     PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\VideoStreamer.0.1.0\\build\\native\\VideoStreamer.targets")
-
-add_dependencies(win_camera_node win_camera NugetRestore)
+	
+	add_dependencies(win_camera_node NugetRestore)
+endif(ENABLE_VIDEOSTREAMING)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(win_camera
