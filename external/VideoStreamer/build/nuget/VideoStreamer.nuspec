@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <!-- Required elements-->
+        <id>VideoStreamer</id>
+        <version>0.2.0</version>
+        <description>VideoStreamer</description>
+        <authors>susohoni@microsoft.com</authors>
+        <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+        <!--requireLicenseAcceptance>true</requireLicenseAcceptance-->
+        <projectUrl>https://susohoni.visualstudio.com/VideoStreamer</projectUrl>
+        <dependencies>
+            <dependency id="FFmpeg.Nightly" version="20200311.0.0" />
+        </dependencies>
+        <tags>VideoStreamer</tags>
+    </metadata>
+  <files>
+    <!-- header -->
+    <file src="..\..\inc\VideoStreamer.h" target="build\native\inc" />
+    
+    <!-- lib -->
+    <file src="..\VideoStreamer\x64\Release\VideoStreamer.lib" target="build\native\lib\x64" />
+    
+    <!-- DLLs -->
+    <file src="..\VideoStreamer\x64\Release\VideoStreamer.dll" target="build\native\bin\x64" />
+
+    <!-- .targets -->
+    <file src="VideoStreamer.targets" target="build\native"/>
+    
+  </files>
+</package>
