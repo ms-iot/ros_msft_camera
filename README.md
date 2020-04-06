@@ -1,6 +1,6 @@
 # ros_win_camera
 This ROS node uses Windows Media Foundation's frame server to efficiently process camera frames.
-This node uses MF SourceReader API to read frames from camera. The node chooses first available video stream from the camera. Most USB cameras have only on video stream.
+This node uses MF SourceReader API to read frames from camera. The node chooses first available video stream from the camera. Most USB cameras have only one video stream.
 Node publishes using image_transport Camera publisher on image_raw topic  
 
 useful params:
