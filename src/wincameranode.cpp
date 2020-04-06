@@ -13,7 +13,10 @@
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
-const int32_t PUBLISHER_QUEUE_SIZE = 4;
+constexpr int32_t PUBLISHER_QUEUE_SIZE = 4;
+constexpr int32_t DEFAULT_WIDTH = 640;
+constexpr int32_t DEFAULT_HEIGHT = 480;
+constexpr float DEFAULT_FRAMERATE = 30.0;
 auto videoFormat = MFVideoFormat_ARGB32;
 #define TEST_RTP_LOOPBACK
 int main(int argc, char** argv)
@@ -26,13 +29,13 @@ int main(int argc, char** argv)
     int32_t queueSize = PUBLISHER_QUEUE_SIZE;
     winrt::com_ptr< ros_win_camera::WindowsMFCapture> camera, camera1;
     std::string frame_id("camera");
-    privateNode.param("frame_rate", frameRate, 30.0f);
+    privateNode.param("frame_rate", frameRate, DEFAULT_FRAMERATE);
     privateNode.param("pub_queue_size", queueSize, PUBLISHER_QUEUE_SIZE);
     std::mutex waitForFinish;
-    int32_t Width(640), Height(480);
+    int32_t Width(DEFAULT_WIDTH), Height(DEFAULT_HEIGHT);
     std::string cameraInfoUrl("");
-    privateNode.param("image_width", Width, 1280);
-    privateNode.param("image_height", Height, 720);
+    privateNode.param("image_width", Width, DEFAULT_WIDTH);
+    privateNode.param("image_height", Height, DEFAULT_HEIGHT);
 
     privateNode.param("frame_id", frame_id, std::string("camera"));
 
