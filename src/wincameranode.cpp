@@ -6,8 +6,10 @@
 
 #ifdef ENABLE_VIDEOSTREAMING
 #include "VideoStreamer.h"
-extern uint32_t g_dropCount;
 #endif
+
+//#define LOG_LATENCY
+
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
@@ -131,21 +133,6 @@ int main(int argc, char** argv)
         }
     };
 
-    auto compressedSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
-    {
-        if (pSample)
-        {
-            //ROS_INFO("Received SAmple compressed\n");
-        }
-        else
-        {
-            if ((HRESULT)ex.code().value == MF_E_END_OF_STREAM)
-            {
-                ROS_INFO("\nEOS");
-            }
-            waitForFinish.unlock();
-        }
-    };
 #ifdef ENABLE_VIDEOSTREAMING
     GUID nativeVideoFormat;
     camera->ChangeCaptureConfig(Width, Height, frameRate, GUID_NULL);
@@ -160,7 +147,7 @@ int main(int argc, char** argv)
         streamer->ConfigEncoder(Width, Height, frameRate, nativeVideoFormat, MFVideoFormat_H264, 1000000);
         if (!destination.empty()) streamer->AddDestination(destination);
 #ifdef TEST_RTP_LOOPBACK
-#define RTSP_TEST
+//#define RTSP_TEST
 #ifdef RTSP_TEST
         system("start cmd /c ffplay.exe -rtsp_flags listen -fflags nobuffer rtsp://127.0.0.1:54455");
 
@@ -169,45 +156,38 @@ int main(int argc, char** argv)
                 // start in a separate thread as rtsp push protocol will block on connect to server 
                 streamer->AddDestination("127.0.0.1:54455", "rtsp");
             });
-#else
-        streamer->AddDestination("127.0.0.1:5445", "rtp");
+#else //RTSP_TEST
         char buf[20000];
-        streamer->GenerateSDP(buf, 20000, destination);
+        streamer->AddDestination("127.0.0.1:54455", "rtp");
+        streamer->GenerateSDP(buf, 20000, "127.0.0.1:54455");
         printf("sdp:\n%s\n", buf);
         FILE* fsdp;
         fopen_s(&fsdp, "test.sdp", "w");
         fprintf(fsdp, "%s", buf);
         fclose(fsdp);
-        system("start cmd /c C:\\Tools\\ffmpeg-20200324-e5d25d1-win64-static\\bin\\ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
+        
+        system("start cmd /c ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
 
-#endif
-#endif
+#endif //RTSP_TEST
+#endif //TEST_RTP_LOOPBACK
     }
 
     auto streamingSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
         if (pSample)
         {
+#ifdef LOG_LATENCY
             LONGLONG llSampleTime;
             auto tm = MFGetSystemTime();
             pSample->GetSampleTime(&llSampleTime);
-            std::cout << "\rDelay source:" << (tm - llSampleTime) / 10000;
-#ifdef TIGHT_LATENCY_CONTROL
-            LONGLONG llSampleTime;
-            auto tm = MFGetSystemTime();
-            pSample->GetSampleTime(&llSampleTime);
-            if (g_dropCount)
-            {
-                g_dropCount--;
-            }
-            else
+            std::cout << "\rSource Delay:" << (tm - llSampleTime) / 10000;
 #endif
+
+            if (streamer)
             {
-                if (streamer)
-                {
-                    streamer->WritePacket(pSample);
-                }
+                streamer->WritePacket(pSample);
             }
+
         }
         else
         {
@@ -221,14 +201,6 @@ int main(int argc, char** argv)
 #endif
     waitForFinish.lock();
 
-    //camera->StartStreaming();
-    /*if(!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
-    {
-        camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
-        camera->StartStreaming();
-        camera->AddSampleHandler(handler);
-    }
-    else*/
 #ifdef ENABLE_VIDEOSTREAMING
     {
         camera->StartStreaming();
