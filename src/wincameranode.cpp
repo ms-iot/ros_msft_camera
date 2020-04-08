@@ -146,7 +146,7 @@ int main(int argc, char** argv)
     if (!destination.empty())
 #endif
     {
-        check_hresult(CreateFFVideoStreamer(streamer.put()));
+        streamer.attach(CreateFFVideoStreamer());
         streamer->ConfigEncoder(Width, Height, frameRate, nativeVideoFormat, MFVideoFormat_H264, 1000000);
         if (!destination.empty()) streamer->AddDestination(destination);
 #ifdef TEST_RTP_LOOPBACK

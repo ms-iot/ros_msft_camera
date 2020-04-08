@@ -55,10 +55,10 @@ find_program(NUGET nuget)
 add_custom_target(NugetRestore ${NUGET} restore ${CMAKE_SOURCE_DIR}\\src\\packages.config -SolutionDirectory ${CMAKE_CURRENT_BINARY_DIR} -ConfigFile ${CMAKE_SOURCE_DIR}\\src\\nuget.config)
 
 set_property(TARGET win_camera_node
-    PROPERTY VS_PACKAGE_REFERENCES "VideoStreamer_0.2.0")
+    PROPERTY VS_PACKAGE_REFERENCES "VideoStreamer_0.3.0")
         
 set_property(TARGET win_camera_node
-    PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\VideoStreamer.0.2.0\\build\\native\\VideoStreamer.targets")
+    PROPERTY VS_PROJECT_IMPORT "${CMAKE_CURRENT_BINARY_DIR}\\packages\\VideoStreamer.0.3.0\\build\\native\\VideoStreamer.targets")
     
     add_dependencies(win_camera_node NugetRestore)
 endif(ENABLE_VIDEOSTREAMING)

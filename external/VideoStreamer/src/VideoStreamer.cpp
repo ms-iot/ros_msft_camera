@@ -1,6 +1,7 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
 #include "VideoStreamerInternal.h"
 #include <iostream>
+
 #pragma comment(lib, "avformat.lib")
 using namespace winrt;
 //#define TIGHT_LATENCY_CONTROL
@@ -60,25 +61,17 @@ VideoStreamerFFmpeg::~VideoStreamerFFmpeg()
     m_aAvfctx.clear();
 }
 
-HRESULT VideoStreamerFFmpeg::CreateInstance(IVideoStreamer** ppVideoStreamer)
+IVideoStreamer* VideoStreamerFFmpeg::CreateInstance()
 {
-    if (ppVideoStreamer == nullptr)
-    {
-        return E_POINTER;
-    }
-
-    auto pVS = new (std::nothrow) VideoStreamerFFmpeg();
-    if (pVS == NULL)
-    {
-        return E_OUTOFMEMORY;
-    }
-    return pVS->QueryInterface(__uuidof(IVideoStreamer), (void**)ppVideoStreamer);
+    winrt::com_ptr< VideoStreamerFFmpeg> pVS; 
+    pVS.attach( new VideoStreamerFFmpeg());
+    return pVS.as<IVideoStreamer>().detach();
 }
 
 // Create a new instance of the object.
-HRESULT CreateFFVideoStreamer(IVideoStreamer** ppVideoStreamer)
+IVideoStreamer* CreateFFVideoStreamer()
 {
-    return VideoStreamerFFmpeg::CreateInstance(ppVideoStreamer);
+    return VideoStreamerFFmpeg::CreateInstance();
 }
 
 STDMETHODIMP VideoStreamerBase::QueryInterface(REFIID riid, void** ppv)
@@ -170,7 +163,7 @@ STDMETHODIMP VideoStreamerFFmpeg::OnProcessSample(REFGUID guidMajorMediaType, DW
         pkt.duration = llSampleDuration / 10000;
         pkt.pts = llSampleTime / 10000;
         pkt.dts = pkt.pts;
-        //av_interleaved_write_frame(avc.second, &pkt);
+
         av_write_frame(avc.second, &pkt);
         av_packet_unref(&pkt);
     }
@@ -244,17 +237,27 @@ AVFormatContext* VideoStreamerFFmpeg::CreateAVformatCtxt(std::string destination
     AVCodecID codec_id = g_CodecMapMFtoFF[m_outVideoFormat];
     AVOutputFormat* fmt = av_guess_format(protocol.c_str(), NULL, NULL);
     std::string destString = protocol + std::string("://") + destination;
-    avformat_alloc_output_context2(&pAvfctx, fmt, fmt->name,
-        destString.c_str());
+    int averror = avformat_alloc_output_context2(&pAvfctx, fmt, fmt->name, destString.c_str());
+    if (averror < 0)
+    {
+        throw new hresult_error(E_FAIL, L"Error Allocating AVOutputFormat context: AVERROR:" + to_hstring(averror));
+    }
+    struct AVStream* stream = avformat_new_stream(pAvfctx, nullptr);
+    if (stream != nullptr)
+    {
+        stream->codecpar->bit_rate = m_bitrate;
+        stream->codecpar->width = m_width;
+        stream->codecpar->height = m_height;
+        stream->codecpar->codec_id = codec_id;
+        stream->codecpar->codec_type = AVMediaType::AVMEDIA_TYPE_VIDEO;
+        stream->time_base.num = 100;
+        stream->time_base.den = (int)(m_frameRate * 100);
+    }
+    else
+    {
+        throw hresult_error(E_FAIL, L"Error Allocating stream for AVOutputFormat context for codec id:" + to_hstring(codec_id));
+    }
 
-    struct AVStream* stream = avformat_new_stream(pAvfctx, /*codec*/nullptr);
-    stream->codecpar->bit_rate = m_bitrate;
-    stream->codecpar->width = m_width;
-    stream->codecpar->height = m_height;
-    stream->codecpar->codec_id = g_CodecMapMFtoFF[m_outVideoFormat];;
-    stream->codecpar->codec_type = AVMediaType::AVMEDIA_TYPE_VIDEO;
-    stream->time_base.num = 100;
-    stream->time_base.den = (int)(m_frameRate * 100);
     return pAvfctx;
 }
 void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string protocol)
@@ -267,8 +270,16 @@ void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string pr
     }
     pAvfctx = CreateAVformatCtxt(destination, protocol);
 
-    avio_open(&pAvfctx->pb, pAvfctx->url, AVIO_FLAG_WRITE);
-    avformat_write_header(pAvfctx, NULL);
+    int averror = avio_open(&pAvfctx->pb, pAvfctx->url, AVIO_FLAG_WRITE);
+    if (averror < 0)
+    {
+        throw hresult_error(E_FAIL, L"Error opening I/O - AVERROR:" + to_hstring(averror)+ L" for url:" + to_hstring(pAvfctx->url));
+    }
+    averror = avformat_write_header(pAvfctx, NULL);
+    if (averror < 0)
+    {
+        throw hresult_error(E_FAIL, L"Error wirting header AVERROR:" + to_hstring(averror));
+    }
     m_aAvfctx.insert({ destination, pAvfctx });
 }
 
@@ -281,6 +292,8 @@ void VideoStreamerFFmpeg::GenerateSDP(char* buf, size_t maxSize, std::string des
 {
     AVFormatContext* pAvfctx = nullptr;
     bool bCreateTmpContext = true;
+
+    check_pointer(buf);
     auto pAvfctxIter = m_aAvfctx.find(destination);
     if (pAvfctxIter != m_aAvfctx.end())
     {
@@ -297,8 +310,11 @@ void VideoStreamerFFmpeg::GenerateSDP(char* buf, size_t maxSize, std::string des
     }
 
     AVFormatContext* ac[] = { pAvfctx };
-    av_sdp_create(ac, 1, (char*)buf, (int)maxSize);
-
+    int averror = av_sdp_create(ac, 1, (char*)buf, (int)maxSize);
+    if (averror < 0)
+    {
+        throw hresult_error(E_FAIL, L"Error creating SDP AVERROR:" + to_hstring(averror) + L" for destination:" + to_hstring(destination));
+    }
     if (bCreateTmpContext)
     {
         avformat_free_context(pAvfctx);

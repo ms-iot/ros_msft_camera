@@ -61,7 +61,7 @@ class VideoStreamerFFmpeg sealed : public VideoStreamerBase
     virtual ~VideoStreamerFFmpeg();
     AVFormatContext* CreateAVformatCtxt(std::string destination, std::string protocol);
 public:
-    static HRESULT CreateInstance(IVideoStreamer** ppVideoStreamer);
+    static IVideoStreamer* CreateInstance();
  
     void AddDestination(std::string destination, std::string protocol = "rtp") override;
     void RemoveDestination(std::string destination) override;

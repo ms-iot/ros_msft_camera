@@ -30,5 +30,5 @@ public:
 
 };
 
-VIDEOSTREAMER_API HRESULT CreateFFVideoStreamer(IVideoStreamer** ppVideoStreamer);
+VIDEOSTREAMER_API IVideoStreamer* CreateFFVideoStreamer();
 
