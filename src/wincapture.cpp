@@ -273,7 +273,7 @@ namespace ros_win_camera
     {
         std::lock_guard g(m_apiGuardMutex);
         winrt::com_ptr<IMFMediaType> spMT;
-        spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put());
+        check_hresult(spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put()));
         check_hresult(MFGetAttributeSize(spMT.get(), MF_MT_FRAME_SIZE, &width, &height));
         uint32_t Num, Denom;
         check_hresult(MFGetAttributeRatio(spMT.get(), MF_MT_FRAME_RATE, &Num, &Denom));
