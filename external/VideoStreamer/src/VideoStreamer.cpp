@@ -37,8 +37,6 @@ std::map <GUID, AVCodecID, GUIDComparer> g_CodecMapMFtoFF =
     {MFVideoFormat_MPEG2, AVCodecID::AV_CODEC_ID_MPEG2VIDEO}
 };
 
-bool VideoStreamerFFmpeg::s_FFmpegInitDone = false;
-
 void VideoStreamerBase::WritePacket(IMFSample* pSample)
 {
 #ifdef TIGHT_LATENCY_CONTROL
@@ -62,16 +60,6 @@ VideoStreamerFFmpeg::~VideoStreamerFFmpeg()
     m_aAvfctx.clear();
 }
 
-void VideoStreamerFFmpeg::InitFFmpeg()
-{
-    if (!s_FFmpegInitDone)
-    {
-        avformat_network_init();
-        s_FFmpegInitDone = true;
-    }
-
-}
-
 HRESULT VideoStreamerFFmpeg::CreateInstance(IVideoStreamer** ppVideoStreamer)
 {
     if (ppVideoStreamer == nullptr)
@@ -79,7 +67,6 @@ HRESULT VideoStreamerFFmpeg::CreateInstance(IVideoStreamer** ppVideoStreamer)
         return E_POINTER;
     }
 
-    VideoStreamerFFmpeg::InitFFmpeg();
     auto pVS = new (std::nothrow) VideoStreamerFFmpeg();
     if (pVS == NULL)
     {

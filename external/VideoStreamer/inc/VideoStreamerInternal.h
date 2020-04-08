@@ -57,12 +57,10 @@ public:
 class VideoStreamerFFmpeg sealed : public VideoStreamerBase
 {
     std::map<std::string, AVFormatContext*> m_aAvfctx;
-    static bool s_FFmpegInitDone;
     VideoStreamerFFmpeg() :VideoStreamerBase() {}
     virtual ~VideoStreamerFFmpeg();
     AVFormatContext* CreateAVformatCtxt(std::string destination, std::string protocol);
 public:
-    static void InitFFmpeg();
     static HRESULT CreateInstance(IVideoStreamer** ppVideoStreamer);
  
     void AddDestination(std::string destination, std::string protocol = "rtp") override;
