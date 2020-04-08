@@ -26,7 +26,7 @@ protected:
         m_outVideoFormat(GUID_NULL)
     { }
 
-    ~VideoStreamerBase() {};
+    virtual ~VideoStreamerBase() = default;
 
 public:
 
@@ -46,20 +46,20 @@ public:
     STDMETHODIMP OnSetPresentationClock(IMFPresentationClock* pClock);
     STDMETHODIMP OnShutdown();
 
-    void WritePacket(IMFSample* pSample);
+    virtual void WritePacket(IMFSample* pSample);
 
     //IVideoStreamer
-    void ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate);
+    virtual void ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate);
 
 };
 
 
-class VideoStreamerFFmpeg : public VideoStreamerBase
+class VideoStreamerFFmpeg sealed : public VideoStreamerBase
 {
     std::map<std::string, AVFormatContext*> m_aAvfctx;
     static bool s_FFmpegInitDone;
     VideoStreamerFFmpeg() :VideoStreamerBase() {}
-    ~VideoStreamerFFmpeg();
+    virtual ~VideoStreamerFFmpeg();
     AVFormatContext* CreateAVformatCtxt(std::string destination, std::string protocol);
 public:
     static void InitFFmpeg();

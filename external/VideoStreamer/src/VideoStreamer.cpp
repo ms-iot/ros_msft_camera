@@ -7,22 +7,22 @@ using namespace winrt;
 #define VERBOSITY  0
 
 #ifdef TIGHT_LATENCY_CONTROL
-    #define MAX_SINK_LATENCY 100
-    uint32_t g_dropCount;
+#define MAX_SINK_LATENCY 100
+uint32_t g_dropCount;
 #endif
 
 #if (VERBOSITY > 0)
-    #define INFOLOG1 printf 
+#define INFOLOG1 printf 
 #else 
 #define INFOLOG1() 
 #endif
 #if (VERBOSITY > 1)
-    #define INFOLOG2 printf 
+#define INFOLOG2 printf 
 #else
-   #define INFOLOG2()
+#define INFOLOG2()
 #endif
 
-    struct GUIDComparer
+struct GUIDComparer
 {
     bool operator()(const GUID& Left, const GUID& Right) const
     {
@@ -30,9 +30,11 @@ using namespace winrt;
         return memcmp(&Left, &Right, sizeof(Right)) < 0;
     }
 };
+
 std::map <GUID, AVCodecID, GUIDComparer> g_CodecMapMFtoFF =
-{ {MFVideoFormat_H264, AVCodecID::AV_CODEC_ID_H264},
-  {MFVideoFormat_MPEG2, AVCodecID::AV_CODEC_ID_MPEG2VIDEO}
+{
+    {MFVideoFormat_H264, AVCodecID::AV_CODEC_ID_H264},
+    {MFVideoFormat_MPEG2, AVCodecID::AV_CODEC_ID_MPEG2VIDEO}
 };
 
 bool VideoStreamerFFmpeg::s_FFmpegInitDone = false;
@@ -181,7 +183,8 @@ STDMETHODIMP VideoStreamerFFmpeg::OnProcessSample(REFGUID guidMajorMediaType, DW
         pkt.duration = llSampleDuration / 10000;
         pkt.pts = llSampleTime / 10000;
         pkt.dts = pkt.pts;
-        av_interleaved_write_frame(avc.second, &pkt);
+        //av_interleaved_write_frame(avc.second, &pkt);
+        av_write_frame(avc.second, &pkt);
         av_packet_unref(&pkt);
     }
 
@@ -197,7 +200,7 @@ STDMETHODIMP VideoStreamerBase::OnShutdown()
 void VideoStreamerBase::ConfigEncoder(uint32_t width, uint32_t height, float framerate, GUID inVideoFormat, GUID outVideoFormat, uint32_t bitrate)
 {
     winrt::com_ptr<IMFMediaType> spOutType, spInType;
-    
+
     winrt::com_ptr<IMFActivate>  spSinkActivate;
     winrt::com_ptr<IMFMediaSink> spSink;
 
@@ -245,7 +248,7 @@ void VideoStreamerBase::ConfigEncoder(uint32_t width, uint32_t height, float fra
     {
         INFOLOG1("\nTranform %d: %x-%x-%x-%x%x%x%x", i - 1, cagtegory.Data1, cagtegory.Data2, cagtegory.Data3, cagtegory.Data4[0], cagtegory.Data4[1], cagtegory.Data4[2], cagtegory.Data4[3]);
     }
-    INFOLOG1("\nTotal: %d",i);
+    INFOLOG1("\nTotal: %d", i);
 #endif
 }
 AVFormatContext* VideoStreamerFFmpeg::CreateAVformatCtxt(std::string destination, std::string protocol)
@@ -287,7 +290,7 @@ void VideoStreamerFFmpeg::RemoveDestination(std::string destination)
     m_aAvfctx.erase(destination);
 }
 
-void VideoStreamerFFmpeg::GenerateSDP(char *buf, size_t maxSize, std::string destination)
+void VideoStreamerFFmpeg::GenerateSDP(char* buf, size_t maxSize, std::string destination)
 {
     AVFormatContext* pAvfctx = nullptr;
     bool bCreateTmpContext = true;
@@ -296,19 +299,19 @@ void VideoStreamerFFmpeg::GenerateSDP(char *buf, size_t maxSize, std::string des
     {
         //destination already exists
         pAvfctx = pAvfctxIter->second;
-        if(std::string(pAvfctx->oformat->name) == std::string("rtp"))
+        if (std::string(pAvfctx->oformat->name) == std::string("rtp"))
         {
             bCreateTmpContext = false;
         }
     }
-    if(bCreateTmpContext)
+    if (bCreateTmpContext)
     {
         pAvfctx = CreateAVformatCtxt(destination, "rtp");
     }
-    
+
     AVFormatContext* ac[] = { pAvfctx };
     av_sdp_create(ac, 1, (char*)buf, (int)maxSize);
-    
+
     if (bCreateTmpContext)
     {
         avformat_free_context(pAvfctx);

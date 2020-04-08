@@ -271,6 +271,7 @@ namespace ros_win_camera
     }
     void WindowsMFCapture::GetCaptureConfig(uint32_t& width, uint32_t& height, float& framerate, GUID& videoSubtype)
     {
+        std::lock_guard g(m_apiGuardMutex);
         winrt::com_ptr<IMFMediaType> spMT;
         spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put());
         check_hresult(MFGetAttributeSize(spMT.get(), MF_MT_FRAME_SIZE, &width, &height));
