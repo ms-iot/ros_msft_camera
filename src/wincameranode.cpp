@@ -91,7 +91,7 @@ int main(int argc, char** argv)
             spCameraInfoManager->loadCameraInfo(cameraInfoUrl);
         }
     }
-    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
+    camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath)));
     auto rawPublisher = new WinRosPublisherImageRaw(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
 
     std::string destination, protocol;
@@ -209,7 +209,7 @@ int main(int argc, char** argv)
         camera->StartStreaming();
         camera->AddSampleHandler(streamingSampleHandler);
 
-        camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
+        camera1.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), false));
         camera1->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera1->StartStreaming();
         camera1->AddSampleHandler(rosImagePubHandler);

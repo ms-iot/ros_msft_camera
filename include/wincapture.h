@@ -74,9 +74,9 @@ namespace ros_win_camera
     class WindowsMFCapture : private IMFSourceReaderCallback
     {
     public:
-        static winrt::Windows::Foundation::Collections::IVectorView<winrt::hstring> EnumerateCameraLinks(bool bEnumerateSensorCamera);
+        static WindowsMFCapture* CreateInstance(bool isDevice, const winrt::hstring& link, bool isController = true);
 
-        WindowsMFCapture(bool isDevice, const winrt::hstring& link, bool isController = true);
+        static winrt::Windows::Foundation::Collections::IVectorView<winrt::hstring> EnumerateCameraLinks(bool bEnumerateSensorCamera);
 
         bool ChangeCaptureConfig(int32_t width, int32_t height, float frameRate, GUID preferredVideoSubType, bool bForceConversion = false);
 
@@ -110,6 +110,8 @@ namespace ros_win_camera
         void StartStreaming();
         void StopStreaming();
     private:
+        // private contructor to force consumers to use allocation on heap using CreateInstance
+        WindowsMFCapture(bool isDevice, const winrt::hstring& link, bool isController = true);
         // private destructor so that destruction is controlled by Release() as we inherit from IUnknown
         virtual ~WindowsMFCapture() = default;
         void InitCaptureWithDevice(const winrt::hstring& cameraSymbolicLink);
@@ -157,13 +159,6 @@ namespace ros_win_camera
         winrt::slim_mutex m_apiGuardMutex;
         winrt::slim_mutex m_sampleHandlerMutex;
     };
-    
-    
-    //WindowsMFCapture* CreateInstance(bool isDevice, const winrt::hstring& link, bool isController = true)
-    //{
-    //    //auto wr = winrt:
-    //    auto wr = new WindowsMFCapture(isDevice, link, isController);
-    //    return (WindowsMFCapture*)wr;
-    //}
 
+    
 }

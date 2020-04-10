@@ -376,4 +376,11 @@ namespace ros_win_camera
         }
         return bStatus;
     }
+
+    WindowsMFCapture* WindowsMFCapture::CreateInstance(bool isDevice, const winrt::hstring& link, bool isController /*= true*/)
+    {
+        auto wr = new WindowsMFCapture(isDevice, link, isController);
+        return wr;
+    }
+
 }
