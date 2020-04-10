@@ -64,12 +64,12 @@ int main(int argc, char** argv)
             // We convert such paths to unc path.
 
             pos += 5; // length of "file:"
-            int slashCnt=0;
+            int slashCnt = 0;
             while (cameraInfoUrl[++pos] == '/') slashCnt++;
-            if (cameraInfoUrl[pos] == '\\' && cameraInfoUrl[pos+1] == '\\')
+            if (cameraInfoUrl[pos] == '\\' && cameraInfoUrl[pos + 1] == '\\')
             {
                 // unc path that needs conversion
-                auto path = cameraInfoUrl.substr(pos+2);
+                auto path = cameraInfoUrl.substr(pos + 2);
                 cameraInfoUrl = std::string("file:////") + path;
             }
             else if (cameraInfoUrl[pos + 1] == ':')
@@ -77,9 +77,9 @@ int main(int argc, char** argv)
                 //full drive path
                 auto path = cameraInfoUrl.substr(pos);
                 path[1] = '$'; // replace ':' with '$' to convert to unc path
-                cameraInfoUrl = std::string("file:////127.0.0.1\\")+path;
+                cameraInfoUrl = std::string("file:////127.0.0.1\\") + path;
             }
-            else if(slashCnt < 4) // if slashCnt >= 4 it is probably is an acceptable unc path
+            else if (slashCnt < 4) // if slashCnt >= 4 it is probably is an acceptable unc path
             {
                 ROS_ERROR("camera info url for file must be a fully qualified drive path or unc path");
             }
@@ -92,13 +92,13 @@ int main(int argc, char** argv)
         }
     }
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
-    WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
-    winrt::com_ptr<IMFSinkWriter> spSinkWriter;
-    std::string destination,protocol;
-    privateNode.param("StreamOutDestination",destination, std::string(""));
+    auto rawPublisher = new WinRosPublisherImageRaw(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
+
+    std::string destination, protocol;
+    privateNode.param("StreamOutDestination", destination, std::string(""));
     privateNode.param("StreamOutProtocol", protocol, std::string("rtp"));
     bool resChangeInProgress = false;
-    auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
+    auto rosImagePubHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
         if (pSample)
         {
@@ -123,7 +123,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+                rawPublisher->OnSample(pSample, (UINT32)Width, (UINT32)Height);
             }
         }
         else
@@ -150,7 +150,7 @@ int main(int argc, char** argv)
         streamer->ConfigEncoder(Width, Height, frameRate, nativeVideoFormat, MFVideoFormat_H264, 1000000);
         if (!destination.empty()) streamer->AddDestination(destination);
 #ifdef TEST_RTP_LOOPBACK
-//#define RTSP_TEST
+        //#define RTSP_TEST
 #ifdef RTSP_TEST
         system("start cmd /c ffplay.exe -rtsp_flags listen -fflags nobuffer rtsp://127.0.0.1:54455");
 
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
         fopen_s(&fsdp, "test.sdp", "w");
         fprintf(fsdp, "%s", buf);
         fclose(fsdp);
-        
+
         system("start cmd /c ffplay.exe -protocol_whitelist file,udp,rtp test.sdp");
 
 #endif //RTSP_TEST
@@ -212,13 +212,13 @@ int main(int argc, char** argv)
         camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
         camera1->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera1->StartStreaming();
-        camera1->AddSampleHandler(handler);
+        camera1->AddSampleHandler(rosImagePubHandler);
     }
 #else
     camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), true));
     camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
     camera->StartStreaming();
-    camera->AddSampleHandler(handler);
+    camera->AddSampleHandler(rosImagePubHandler);
 
 #endif
 #ifdef TEST_SETCAMERAINFO
@@ -228,7 +228,7 @@ int main(int argc, char** argv)
     info.width = 400;
     spCameraInfoManager->setCameraInfo(info);
 #endif //#ifdef TEST_SETCAMERAINFO
-    
+
     ros::spin();
 
     camera->StopStreaming();
