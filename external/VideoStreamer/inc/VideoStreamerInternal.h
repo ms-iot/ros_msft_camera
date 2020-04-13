@@ -1,8 +1,93 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
 #include "VideoStreamer.h"
+#include <iostream>
 extern "C" {
 #include <libavformat/avformat.h>
 }
+
+class SinkGrabberCBWrapper : public IMFSampleGrabberSinkCallback
+{
+    IMFSampleGrabberSinkCallback* m_pParent;
+    long m_cRef;
+    SinkGrabberCBWrapper(IMFSampleGrabberSinkCallback* pParent)
+        :m_cRef(1)
+    {
+        m_pParent = pParent;
+    }
+    virtual ~SinkGrabberCBWrapper() = default;
+
+public:
+    static SinkGrabberCBWrapper* CreateWrapper(IMFSampleGrabberSinkCallback* pParent)
+    {
+        return new SinkGrabberCBWrapper(pParent);
+    }
+    // IUnknown methods
+    STDMETHODIMP QueryInterface(REFIID riid, void** ppv)
+    {
+        static const QITAB qit[] =
+        {
+            QITABENT(SinkGrabberCBWrapper, IMFSampleGrabberSinkCallback),
+            QITABENT(SinkGrabberCBWrapper, IMFClockStateSink),
+            { 0 }
+        };
+        return QISearch(this, qit, riid, ppv);
+    }
+
+    STDMETHODIMP_(ULONG) AddRef()
+    {
+        return InterlockedIncrement(&m_cRef);
+    }
+
+    STDMETHODIMP_(ULONG) Release()
+    {
+        ULONG cRef = InterlockedDecrement(&m_cRef);
+        if (cRef == 0)
+        {
+            delete this;
+        }
+        return cRef;
+
+    }
+
+    // IMFClockStateSink methods
+    STDMETHODIMP OnClockStart(MFTIME hnsSystemTime, LONGLONG llClockStartOffset)
+    {
+        return m_pParent->OnClockStart(hnsSystemTime, llClockStartOffset);
+    }
+    STDMETHODIMP OnClockStop(MFTIME hnsSystemTime)
+    {
+        return m_pParent->OnClockStop(hnsSystemTime);
+    }
+    STDMETHODIMP OnClockPause(MFTIME hnsSystemTime)
+    {
+        return m_pParent->OnClockPause(hnsSystemTime);
+    }
+    STDMETHODIMP OnClockRestart(MFTIME hnsSystemTime)
+    {
+        return m_pParent->OnClockRestart(hnsSystemTime);
+    }
+    STDMETHODIMP OnClockSetRate(MFTIME hnsSystemTime, float flRate)
+    {
+        return m_pParent->OnClockSetRate(hnsSystemTime, flRate);
+    }
+
+    // IMFSampleGrabberSinkCallback methods
+    STDMETHODIMP OnSetPresentationClock(IMFPresentationClock* pClock)
+    {
+        return m_pParent->OnSetPresentationClock(pClock);
+    }
+    STDMETHODIMP OnShutdown()
+    {
+        return m_pParent->OnShutdown();
+    }
+    //IMFSampleGrabberCallback
+    STDMETHODIMP OnProcessSample(REFGUID guidMajorMediaType, DWORD dwSampleFlags,
+        LONGLONG llSampleTime, LONGLONG llSampleDuration, const BYTE* pSampleBuffer,
+        DWORD dwSampleSize)
+    {
+        return m_pParent->OnProcessSample(guidMajorMediaType, dwSampleFlags, llSampleTime, llSampleDuration, pSampleBuffer, dwSampleSize);
+    }
+};
 
 // The class that implements the callback interface.
 class VideoStreamerBase : public IMFSampleGrabberSinkCallback, public IVideoStreamer
@@ -62,7 +147,7 @@ class VideoStreamerFFmpeg sealed : public VideoStreamerBase
     AVFormatContext* CreateAVformatCtxt(std::string destination, std::string protocol);
 public:
     static IVideoStreamer* CreateInstance();
- 
+
     void AddDestination(std::string destination, std::string protocol = "rtp") override;
     void RemoveDestination(std::string destination) override;
     void GenerateSDP(char* buf, size_t maxSize, std::string destination) override;

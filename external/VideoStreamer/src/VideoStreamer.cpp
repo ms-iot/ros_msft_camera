@@ -63,8 +63,8 @@ VideoStreamerFFmpeg::~VideoStreamerFFmpeg()
 
 IVideoStreamer* VideoStreamerFFmpeg::CreateInstance()
 {
-    winrt::com_ptr< VideoStreamerFFmpeg> pVS; 
-    pVS.attach( new VideoStreamerFFmpeg());
+    winrt::com_ptr< VideoStreamerFFmpeg> pVS;
+    pVS.attach(new VideoStreamerFFmpeg());
     return pVS.as<IVideoStreamer>().detach();
 }
 
@@ -206,8 +206,9 @@ void VideoStreamerBase::ConfigEncoder(uint32_t width, uint32_t height, float fra
     check_hresult(spInType->SetGUID(MF_MT_SUBTYPE, inVideoFormat));
     check_hresult(spInType->DeleteItem(MF_MT_AVG_BITRATE));
 
+
     // Create the sample grabber sink.
-    check_hresult(MFCreateSampleGrabberSinkActivate(spOutType.get(), this, spSinkActivate.put()));
+    check_hresult(MFCreateSampleGrabberSinkActivate(spOutType.get(), SinkGrabberCBWrapper::CreateWrapper(this), spSinkActivate.put()));
 
     // To run as fast as possible, set this attribute
     check_hresult(spSinkActivate->SetUINT32(MF_SAMPLEGRABBERSINK_IGNORE_CLOCK, TRUE));
@@ -273,7 +274,7 @@ void VideoStreamerFFmpeg::AddDestination(std::string destination, std::string pr
     int averror = avio_open(&pAvfctx->pb, pAvfctx->url, AVIO_FLAG_WRITE);
     if (averror < 0)
     {
-        throw hresult_error(E_FAIL, L"Error opening I/O - AVERROR:" + to_hstring(averror)+ L" for url:" + to_hstring(pAvfctx->url));
+        throw hresult_error(E_FAIL, L"Error opening I/O - AVERROR:" + to_hstring(averror) + L" for url:" + to_hstring(pAvfctx->url));
     }
     averror = avformat_write_header(pAvfctx, NULL);
     if (averror < 0)
