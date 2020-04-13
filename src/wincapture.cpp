@@ -108,13 +108,11 @@ namespace ros_win_camera
         {
             m_bStreamingStarted = false;
             check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, FALSE));
-            //completionMutex.unlock();
-            //ul.unlock();
             eventCompletion.notify_one();
         }));
         LeaveCriticalSection(&m_critsec);
         check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
-        
+
         // wait for the config-stop event to complete
         eventCompletion.wait(ul);
 
