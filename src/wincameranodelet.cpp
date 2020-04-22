@@ -16,7 +16,7 @@ namespace ros_win_camera
 
     public:
         WinCameraNodelet()
-            : m_Width(640), 
+            : m_Width(640),
             m_Height(480),
             m_frameRate(30.0),
             m_QueueSize(PUBLISHER_QUEUE_SIZE)
@@ -25,7 +25,7 @@ namespace ros_win_camera
         ~WinCameraNodelet()
         {
             m_camera->StopStreaming();
-            m_waitForFinish.lock();
+            m_conditionFinish.notify_all();
         }
 
     private:
@@ -58,7 +58,7 @@ namespace ros_win_camera
                 }
             }
 
-            m_spRawPublisher  = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", m_QueueSize, frame_id, m_spCameraInfoManager.get());
+            m_spRawPublisher = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", m_QueueSize, frame_id, m_spCameraInfoManager.get());
             m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", m_QueueSize, frame_id, m_spCameraInfoManager.get());
 
             m_spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
@@ -106,7 +106,7 @@ namespace ros_win_camera
                     {
                         ROS_INFO("\nEOS");
                     }
-                    m_waitForFinish.unlock();
+                    m_conditionFinish.notify_all();
                 }
             };
 
@@ -115,7 +115,6 @@ namespace ros_win_camera
                 if (pSample)
                 {
                     ROS_INFO("Received compressed Sample\n");
-
                 }
                 else
                 {
@@ -123,13 +122,14 @@ namespace ros_win_camera
                     {
                         ROS_INFO("\nEOS");
                     }
- 
-                    m_waitForFinish.unlock();
+
+                    m_conditionFinish.notify_all();
                 }
             };
+            std::mutex mutexFinish;
 
-            m_waitForFinish.lock();
-
+            std::unique_lock<std::mutex> ul(mutexFinish);
+            m_conditionFinish.wait(ul);
             m_camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
             m_camera->StartStreaming();
             if (!m_camera->ChangeCaptureConfig(m_Width, m_Height, m_frameRate, MFVideoFormat_MJPG))
@@ -146,7 +146,7 @@ namespace ros_win_camera
             }
 
         }
-        std::mutex m_waitForFinish;
+        std::condition_variable m_conditionFinish;
         winrt::com_ptr< ros_win_camera::WindowsMFCapture> m_camera, m_camera1;
         int32_t m_Width, m_Height;
         int32_t m_QueueSize;

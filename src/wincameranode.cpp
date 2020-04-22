@@ -31,7 +31,9 @@ int main(int argc, char** argv)
     std::string frame_id("camera");
     privateNode.param("frame_rate", frameRate, DEFAULT_FRAMERATE);
     privateNode.param("pub_queue_size", queueSize, PUBLISHER_QUEUE_SIZE);
-    std::mutex waitForFinish;
+    std::condition_variable eventFinish;
+    std::mutex mutexFinish;
+    std::unique_lock<std::mutex> lockFinish(mutexFinish);
     int32_t Width(DEFAULT_WIDTH), Height(DEFAULT_HEIGHT);
     std::string cameraInfoUrl("");
     privateNode.param("image_width", Width, DEFAULT_WIDTH);
@@ -49,8 +51,17 @@ int main(int argc, char** argv)
         }
         else
         {
+            int i = 0;
+#ifdef INTERACTIVE
+            for (auto sym : ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false))
+            {
+                std::wcout << i++ << " - " << sym.c_str();
+            }
+            std::cout << "\nyour choice: ";
+            std::cin >> i;
+#endif
             // no source path is specified; we default to first enumerated camera
-            videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
+            videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).GetAt(i));
         }
     }
     std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, frame_id, "");
@@ -132,7 +143,7 @@ int main(int argc, char** argv)
             {
                 ROS_INFO("\nEOS");
             }
-            waitForFinish.unlock();
+            eventFinish.notify_all();
         }
     };
 
@@ -198,11 +209,10 @@ int main(int argc, char** argv)
             {
                 ROS_INFO("\nEOS");
             }
-            waitForFinish.unlock();
+            eventFinish.notify_all();
         }
     };
 #endif
-    waitForFinish.lock();
 
 #ifdef ENABLE_VIDEOSTREAMING
     {
@@ -215,7 +225,7 @@ int main(int argc, char** argv)
         camera1->AddSampleHandler(rosImagePubHandler);
     }
 #else
-    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), true));
+    camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
     camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
     camera->StartStreaming();
     camera->AddSampleHandler(rosImagePubHandler);
@@ -232,7 +242,7 @@ int main(int argc, char** argv)
     ros::spin();
 
     camera->StopStreaming();
-    waitForFinish.lock();
+    eventFinish.wait(lockFinish);
     return 0;
 }
 
