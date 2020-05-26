@@ -27,6 +27,7 @@ namespace ros_win_camera
         {
 
         }
+        virtual ~WinRosPublisherBase() = default;
         virtual void OnSample(IMFSample *pSample, UINT32 u32Width, UINT32 u32Height) = 0;
 
     protected:
@@ -50,7 +51,7 @@ namespace ros_win_camera
             m_bRescaleCameraInfo = m_nodeHandle.param<bool>("rescale_camera_info", false);
             m_cameraPublisher = m_imageTransport.advertiseCamera(m_topicName, m_i32BufferSize);
         }
-
+        virtual ~WinRosPublisherImageRaw() = default;
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {
             try 
@@ -163,7 +164,7 @@ namespace ros_win_camera
         {
             m_MFSamplePublisher = m_nodeHandle.advertise<win_camera::MFSample>(topic_name, 2);
         }
-        
+        virtual ~WinRosPublisherMFSample() = default;
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {
             win_camera::MFSamplePtr sampleMsg = boost::make_shared<win_camera::MFSample>();
@@ -184,6 +185,7 @@ namespace ros_win_camera
         {
             m_compressedPublisher = m_nodeHandle.advertise<sensor_msgs::CompressedImage>("compressed/jpeg", buffer_size);
         }
+        virtual ~WinRosPublisherCompressed() = default;
 
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {

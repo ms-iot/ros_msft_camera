@@ -3,10 +3,15 @@
 #include "winrospublisher.h"
 #include <ros/ros.h>
 #include <string>
+
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_win_camera;
-const int32_t PUBLISHER_QUEUE_SIZE = 4;
+constexpr int32_t PUBLISHER_QUEUE_SIZE = 4;
+constexpr int32_t DEFAULT_WIDTH = 640;
+constexpr int32_t DEFAULT_HEIGHT = 480;
+constexpr float DEFAULT_FRAMERATE = 30.0;
+auto videoFormat = MFVideoFormat_ARGB32;
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "win_camera");
@@ -17,13 +22,13 @@ int main(int argc, char** argv)
     int32_t queueSize = PUBLISHER_QUEUE_SIZE;
     winrt::com_ptr< ros_win_camera::WindowsMFCapture> camera, camera1;
     std::string frame_id("camera");
-    privateNode.param("frame_rate", frameRate, 30.0f);
+    privateNode.param("frame_rate", frameRate, DEFAULT_FRAMERATE);
     privateNode.param("pub_queue_size", queueSize, PUBLISHER_QUEUE_SIZE);
-    std::mutex waitForFinish;
-    int32_t Width(640), Height(480);
+    std::condition_variable eventFinish;
+    int32_t Width(DEFAULT_WIDTH), Height(DEFAULT_HEIGHT);
     std::string cameraInfoUrl("");
-    privateNode.param("image_width", Width, 640);
-    privateNode.param("image_height", Height, 480);
+    privateNode.param("image_width", Width, DEFAULT_WIDTH);
+    privateNode.param("image_height", Height, DEFAULT_HEIGHT);
 
     privateNode.param("frame_id", frame_id, std::string("camera"));
 
@@ -37,8 +42,17 @@ int main(int argc, char** argv)
         }
         else
         {
+            int i = 0;
+#ifdef INTERACTIVE
+            for (auto sym : ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false))
+            {
+                std::wcout << i++ << " - " << sym.c_str();
+            }
+            std::cout << "\nyour choice: ";
+            std::cin >> i;
+#endif
             // no source path is specified; we default to first enumerated camera
-            videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
+            videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).GetAt(i));
         }
     }
     std::shared_ptr<camera_info_manager::CameraInfoManager> spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, frame_id, "");
@@ -52,12 +66,12 @@ int main(int argc, char** argv)
             // We convert such paths to unc path.
 
             pos += 5; // length of "file:"
-            int slashCnt=0;
+            int slashCnt = 0;
             while (cameraInfoUrl[++pos] == '/') slashCnt++;
-            if (cameraInfoUrl[pos] == '\\' && cameraInfoUrl[pos+1] == '\\')
+            if (cameraInfoUrl[pos] == '\\' && cameraInfoUrl[pos + 1] == '\\')
             {
                 // unc path that needs conversion
-                auto path = cameraInfoUrl.substr(pos+2);
+                auto path = cameraInfoUrl.substr(pos + 2);
                 cameraInfoUrl = std::string("file:////") + path;
             }
             else if (cameraInfoUrl[pos + 1] == ':')
@@ -65,13 +79,12 @@ int main(int argc, char** argv)
                 //full drive path
                 auto path = cameraInfoUrl.substr(pos);
                 path[1] = '$'; // replace ':' with '$' to convert to unc path
-                cameraInfoUrl = std::string("file:////127.0.0.1\\")+path;
+                cameraInfoUrl = std::string("file:////127.0.0.1\\") + path;
             }
-            else if(slashCnt < 4) // if slashCnt >= 4 it is probably is an acceptable unc path
+            else if (slashCnt < 4) // if slashCnt >= 4 it is probably is an acceptable unc path
             {
                 ROS_ERROR("camera info url for file must be a fully qualified drive path or unc path");
             }
-
         }
 
         if (spCameraInfoManager->validateURL(cameraInfoUrl))
@@ -80,10 +93,11 @@ int main(int argc, char** argv)
             spCameraInfoManager->loadCameraInfo(cameraInfoUrl);
         }
     }
-    WinRosPublisherImageRaw rawPublisher(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
+    camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath)));
+    auto rawPublisher = new WinRosPublisherImageRaw(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
 
     bool resChangeInProgress = false;
-    auto handler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
+    auto rosImagePubHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
     {
         if (pSample)
         {
@@ -94,7 +108,7 @@ int main(int argc, char** argv)
                 ThreadPool::RunAsync([camera, &Width, &Height, frameRate, spCameraInfoManager, &resChangeInProgress](IAsyncAction)
                     {
                         auto info = spCameraInfoManager->getCameraInfo();
-                        if (camera->ChangeCaptureConfig(info.width, info.height, frameRate, MFVideoFormat_ARGB32, true))
+                        if (camera->ChangeCaptureConfig(info.width, info.height, frameRate, videoFormat, true))
                         {
                             Height = info.height;
                             Width = info.width;
@@ -108,7 +122,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                rawPublisher.OnSample(pSample, (UINT32)Width, (UINT32)Height);
+                rawPublisher->OnSample(pSample, (UINT32)Width, (UINT32)Height);
             }
         }
         else
@@ -117,7 +131,7 @@ int main(int argc, char** argv)
             {
                 ROS_INFO("\nEOS");
             }
-            waitForFinish.unlock();
+            eventFinish.notify_all();
         }
     };
 
@@ -134,31 +148,16 @@ int main(int argc, char** argv)
             {
                 ROS_INFO("\nEOS");
             }
-            waitForFinish.unlock();
+            eventFinish.notify_all();
         }
     };
 
-    waitForFinish.lock();
-
-    camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
+    
+    camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
+    camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
     camera->StartStreaming();
+    camera->AddSampleHandler(rosImagePubHandler);
 
-    if (!camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_MJPG))
-    {
-        camera->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
-        camera->StartStreaming();
-        camera->AddSampleHandler(handler);
-    }
-    else
-    {
-        camera->StartStreaming();
-        camera->AddSampleHandler(compressedSampleHandler);
-
-        camera1.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath), false));
-        camera1->ChangeCaptureConfig(Width, Height, frameRate, MFVideoFormat_ARGB32, true);
-        camera1->StartStreaming();
-        camera1->AddSampleHandler(handler);
-    }
 #ifdef TEST_SETCAMERAINFO
     Sleep(10000);
     auto info = spCameraInfoManager->getCameraInfo();
@@ -169,7 +168,12 @@ int main(int argc, char** argv)
 
     ros::spin();
 
-    camera->StopStreaming();
-    waitForFinish.lock();
+    std::mutex mutexFinish;
+    std::unique_lock<std::mutex> lockFinish(mutexFinish);
+    ThreadPool::RunAsync([camera](IAsyncAction) 
+        {
+            camera->StopStreaming();
+        });
+    eventFinish.wait(lockFinish);
     return 0;
 }
