@@ -9,9 +9,10 @@
 
 TEST(WinCameraNode, getImage)
 {
-    static std::mutex gWaitMutex;
+    std::mutex waitMutex;
+    static std::condition_variable waitForCB;
     ros::NodeHandle node;
-    ros::Rate r(10.0);
+
     void (*cb)(const sensor_msgs::Image::ConstPtr & image)
         = [](const sensor_msgs::Image::ConstPtr& image)
     {
@@ -19,24 +20,23 @@ TEST(WinCameraNode, getImage)
         EXPECT_EQ(720, image->height);
         EXPECT_EQ(1280, image->width);
         EXPECT_EQ("bgra8", image->encoding);
-        gWaitMutex.unlock();
+        waitForCB.notify_all();
     };
-    gWaitMutex.lock();
+    std::unique_lock<std::mutex> ul(waitMutex);
     ros::Subscriber sub = node.subscribe("/win_camera_node/image_raw",
         1,
         cb);
 
-    while (!gWaitMutex.try_lock())
-    {
-        ros::spinOnce();
-        r.sleep();
-    }
-    gWaitMutex.unlock();
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
+    waitForCB.wait(ul);
+    spinner.stop();
 }
 
 TEST(WinCameraNodeTest, getCameraInfo)
 {
-    static std::mutex gWaitMutex;
+    std::mutex waitMutex;
+    static std::condition_variable waitForCB;
     ros::NodeHandle node;
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
@@ -60,23 +60,18 @@ TEST(WinCameraNodeTest, getCameraInfo)
         // width
         EXPECT_EQ(2448, info->width);
         EXPECT_EQ(2050, info->height);
-        gWaitMutex.unlock();
-
+        waitForCB.notify_all();
     };
 
-    gWaitMutex.lock();
-
+    std::unique_lock<std::mutex> ul(waitMutex);
     ros::Subscriber sub = node.subscribe("/win_camera_node/camera_info",
         1,
         cb);
-    ros::Rate r(10.0);
 
-    while (!gWaitMutex.try_lock())
-    {
-        ros::spinOnce();
-        r.sleep();
-    }
-    gWaitMutex.unlock();
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
+    waitForCB.wait(ul);
+    spinner.stop();
 }
 
 int main(int argc, char** argv)

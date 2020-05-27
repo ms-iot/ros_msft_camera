@@ -5,38 +5,40 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <gtest/gtest.h>
+#include<thread>
 
 TEST(WinCameraNode, getImage)
 {
     ros::NodeHandle node;
-    static std::mutex gWaitMutex;
+    std::mutex waitMutex;
+    static std::condition_variable waitForCB;
     void (*cb)(const sensor_msgs::Image::ConstPtr & image) = [](const sensor_msgs::Image::ConstPtr& image)
     {
         EXPECT_EQ("WinCamera2", image->header.frame_id);
         EXPECT_EQ(720, image->height);
         EXPECT_EQ(1280, image->width);
         EXPECT_EQ("bgra8", image->encoding);
-        gWaitMutex.unlock();
+        waitForCB.notify_all();
     };
-
-    gWaitMutex.lock();
     ros::Subscriber sub = node.subscribe("/win_camera_no_yaml/image_raw",
         1,
         cb);
-    ros::Rate r(30.0);
 
-    while (!gWaitMutex.try_lock())
-    {
-        ros::spinOnce();
-        r.sleep();
-    }
-    gWaitMutex.unlock();
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
+    std::unique_lock<std::mutex> ul(waitMutex);
+
+    waitForCB.wait(ul);
+    spinner.stop();
+
 }
 
 TEST(WinCameraNodeTest, getCameraInfo)
 {
     ros::NodeHandle node;
-    static std::mutex gWaitMutex;
+    std::mutex waitMutex;
+    static std::condition_variable waitForCB;
+
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
     {
@@ -53,23 +55,20 @@ TEST(WinCameraNodeTest, getCameraInfo)
         // width
         EXPECT_EQ(1280, info->width);
         EXPECT_EQ(720, info->height);
-        gWaitMutex.unlock();
-
+        waitForCB.notify_all();
     };
+
     ros::Subscriber sub = node.subscribe("/win_camera_no_yaml/camera_info",
         1,
         cb);
-    ros::Rate r(10.0);
-    while (sub.getNumPublishers() == 0)
-    {
-        r.sleep();
-    }
-    while (!gWaitMutex.try_lock())
-    {
-        ros::spinOnce();
-        r.sleep();
-    }
-    gWaitMutex.unlock();
+
+    std::unique_lock<std::mutex> ul(waitMutex);
+
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
+    waitForCB.wait(ul);
+    spinner.stop();
+
 }
 
 int main(int argc, char** argv)

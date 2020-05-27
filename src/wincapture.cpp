@@ -87,7 +87,9 @@ namespace ros_win_camera
 
         check_hresult(spSRAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, TRUE));
         check_hresult(spSRAttributes->SetUINT32(MF_LOW_LATENCY, TRUE));
-        check_hresult(spSRAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this));
+
+        // use weak ref wrpper here to avoid circular reference
+        check_hresult(spSRAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, SRCallBackWrapper::CreateWeakRefWrapper(this)));
 
         check_hresult(MFCreateSourceReaderFromMediaSource(spMediaSource.get(), spSRAttributes.get(), spSourceReader.put()));
     }
@@ -97,21 +99,23 @@ namespace ros_win_camera
         std::lock_guard g(m_apiGuardMutex);
         if (!m_bStreamingStarted) return;
 
-        std::mutex completionMutex;
-        completionMutex.lock();
+        std::condition_variable eventCompletion;
+        std::mutex m;
+        std::unique_lock<std::mutex> ul(m);
 
         EnterCriticalSection(&m_critsec);
         m_configEventTokenList.Append(m_configEvent.add([&]()
         {
             m_bStreamingStarted = false;
             check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, FALSE));
-            completionMutex.unlock();
+            eventCompletion.notify_one();
         }));
         LeaveCriticalSection(&m_critsec);
         check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
 
         // wait for the config-stop event to complete
-        completionMutex.lock();
+        eventCompletion.wait(ul);
+
         _INFO("\nStopped streaming complete!\n");
         m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"Sample Stopped", nullptr);
     }
@@ -140,7 +144,7 @@ namespace ros_win_camera
         check_hresult(MFCreateAttributes(spSRAttributes.put(), 3));
         check_hresult(spSRAttributes->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, TRUE));
         check_hresult(spSRAttributes->SetUINT32(MF_LOW_LATENCY, TRUE));
-        check_hresult(spSRAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this));
+        check_hresult(spSRAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, SRCallBackWrapper::CreateWeakRefWrapper(this)));
         check_hresult(MFCreateSourceReaderFromURL(url.c_str(), spSRAttributes.get(), spSourceReader.put()));
         m_u32Width = 640;
         m_u32Height = 480;
@@ -255,7 +259,7 @@ namespace ros_win_camera
             check_hresult(MFGetAttributeRatio(spMediaType.get(), MF_MT_FRAME_RATE, &FRNum, &FRDen));
             check_hresult(spMediaType->GetGUID(MF_MT_SUBTYPE,&subType));
             float rate = ((float)FRNum / (float)FRDen);
-            //_INFO("\nGot supported resolution :%dx%d@%d", m_u32Width, m_u32Height, (int)rate);
+            //_INFO("\nGot supported resolution :%dx%d@%d - %x-%x-%x-%x", m_u32Width, m_u32Height, (int)rate, subType.Data1,subType.Data2, subType.Data3,subType.Data4);
             bMatch = ((height == 0) || (width == 0) || ((m_u32Width == width) && (height == m_u32Height)));
             bMatch = bMatch && (((int)rate == (int)frameRate) || (frameRate == 0));
             bMatch = bMatch &&  (IsEqualGUID(preferredVideoSubType, subType) || IsEqualGUID(preferredVideoSubType, GUID_NULL));
@@ -269,12 +273,25 @@ namespace ros_win_camera
         return bMatch;
 
     }
+    void WindowsMFCapture::GetCaptureConfig(uint32_t& width, uint32_t& height, float& framerate, GUID& videoSubtype)
+    {
+        std::lock_guard g(m_apiGuardMutex);
+        winrt::com_ptr<IMFMediaType> spMT;
+        check_hresult(spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put()));
+        check_hresult(MFGetAttributeSize(spMT.get(), MF_MT_FRAME_SIZE, &width, &height));
+        uint32_t Num, Denom;
+        check_hresult(MFGetAttributeRatio(spMT.get(), MF_MT_FRAME_RATE, &Num, &Denom));
+        framerate = (float)Num / (float)Denom;
+        check_hresult(spMT->GetGUID(MF_MT_SUBTYPE, &videoSubtype));
+
+    }
     bool WindowsMFCapture::ChangeCaptureConfig(int32_t width, int32_t height, float frameRate, GUID preferredVideoSubType, bool bForceConversion /*= false*/)
     {
         std::lock_guard g(m_apiGuardMutex);
         bool bStatus = true;
-        slim_mutex completionMuxtex;
-        completionMuxtex.lock();
+        std::condition_variable eventCompletion;
+        std::mutex m;
+        std::unique_lock<std::mutex> ul(m);
         auto configHandler = [&]()
         {
             HRESULT hr = S_OK;
@@ -295,7 +312,7 @@ namespace ros_win_camera
                 m_u32Height = height;
 
             }
-            if (!FindMatchingMediaType(spMediaType.put(), width, height, frameRate, preferredVideoSubType))
+            else if (!FindMatchingMediaType(spMediaType.put(), width, height, frameRate, preferredVideoSubType))
             {
                 if (bForceConversion)
                 {
@@ -339,7 +356,7 @@ namespace ros_win_camera
                     _WARN("Couldn't set native res: %x", hr);
                 }
             }
-            completionMuxtex.unlock();
+            eventCompletion.notify_one();
         };
         if (m_bStreamingStarted)
         {
@@ -348,7 +365,7 @@ namespace ros_win_camera
             m_configEventTokenList.Append(m_configEvent.add(configHandler));
             LeaveCriticalSection(&m_critsec);
             check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
-            completionMuxtex.lock();
+            eventCompletion.wait(ul);
             check_hresult(spSourceReader->ReadSample(MF_SOURCE_READER_FIRST_VIDEO_STREAM, m_u32SourceReaderFlags, NULL, NULL, NULL, NULL));
         }
         else
@@ -357,4 +374,11 @@ namespace ros_win_camera
         }
         return bStatus;
     }
+
+    WindowsMFCapture* WindowsMFCapture::CreateInstance(bool isDevice, const winrt::hstring& link, bool isController /*= true*/)
+    {
+        auto wr = new WindowsMFCapture(isDevice, link, isController);
+        return wr;
+    }
+
 }
