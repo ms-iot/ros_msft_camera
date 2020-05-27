@@ -44,12 +44,21 @@ int main(int argc, char** argv)
         {
             int i = 0;
 #ifdef INTERACTIVE
-            for (auto sym : ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false))
+            std::map< std::string, ros::console::levels::Level> logger;
+            ros::console::get_loggers(logger);
+            if (logger[ROSCONSOLE_DEFAULT_NAME] == ros::console::levels::Level::Info)
             {
-                std::wcout << i++ << " - " << sym.c_str();
+                for (auto sym : ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false))
+                {
+                    ROS_INFO("%d. %s", i++, sym.c_str());
+                }
+                ROS_INFO("\nYour choice: ");
+                std::cin >> i;
             }
-            std::cout << "\nyour choice: ";
-            std::cin >> i;
+            else
+            {
+                ROS_ERROR("\nINTERATIVE mode for camera selection needs logger levels set atleast to Level::Info");
+            }
 #endif
             // no source path is specified; we default to first enumerated camera
             videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).GetAt(i));
