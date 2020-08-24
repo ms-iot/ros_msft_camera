@@ -1,32 +1,29 @@
 <?xml version="1.0"?>
-<package>
+<?xml-model
+   href="http://download.ros.org/schema/package_format3.xsd"
+   schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>win_camera</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>win_camera uses Windows Media Foundation to capture camera image.
   </description>
   <maintainer email="susohoni@microsoft.com">Sudhanshu Sohoni</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>message_generation</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>nodelet</build_depend>
-  <build_depend>camera_info_manager</build_depend>
-  <build_depend>rostest</build_depend>
-  <build_depend>roslint</build_depend>
-  
-  
-  <run_depend>message_runtime</run_depend>
-  <run_depend>image_transport</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>nodelet</run_depend>
-  <run_depend>camera_info_manager</run_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <depend>image_transport</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>camera_info_manager</depend>
+  <depend>compressed_image_transport</depend>
 
   <export>
+    <build_type>ament_cmake</build_type>
     <nodelet plugin="${prefix}/win_camera_nodelets.xml"/>
   </export>
-
 </package>

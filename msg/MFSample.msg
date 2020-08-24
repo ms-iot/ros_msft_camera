@@ -1,2 +1,2 @@
-Header header
-int64 pSample
+std_msgs/Header header
+int64 sample

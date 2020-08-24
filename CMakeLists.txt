@@ -1,69 +1,65 @@
 cmake_minimum_required(VERSION 3.15.3)
 project(win_camera)
 
-find_package(catkin REQUIRED COMPONENTS
-  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation roslint)
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
 
-find_package(Boost REQUIRED COMPONENTS system thread)
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 
-set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set (CMAKE_CXX_EXTENSIONS FALSE)
+if(NOT CMAKE_CXX_STANDARD_REQUIRED)
+  set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+endif()
 
-roslint_cpp()
-add_message_files(
-   FILES
-   MFSample.msg
- )
-generate_messages(
-   DEPENDENCIES
-   std_msgs
- )
-  
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES win_camera
-  CATKIN_DEPENDS image_transport roscpp sensor_msgs nodelet camera_info_manager message_runtime
+if(NOT CMAKE_CXX_EXTENSIONS)
+  set(CMAKE_CXX_EXTENSIONS FALSE)
+endif()
+
+if(MSVC)
+  add_compile_definitions(
+    NOMINMAX
   )
+endif()
+
+find_package(ament_cmake REQUIRED)
+
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(camera_info_manager REQUIRED)
+find_package(compressed_image_transport REQUIRED)
+
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+  "msg/MFSample.msg"
+  DEPENDENCIES std_msgs
+)
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
-  )
+)
 
 ## Declare a cpp library
-add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
+add_library(win_camera STATIC src/wincapture.cpp)
 
-add_dependencies(win_camera win_camera_generate_messages_cpp)
-
-add_library(win_camera_nodelet SHARED src/wincameranodelet.cpp)
-set_target_properties(win_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
+ament_target_dependencies(win_camera
+  compressed_image_transport
+  image_transport
+  camera_info_manager
+  sensor_msgs
+  rclcpp
+)
 
 ## Declare a cpp executable
 add_executable(win_camera_node src/wincameranode.cpp)
-add_dependencies(win_camera_node win_camera)
-add_dependencies(win_camera_nodelet win_camera)
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(win_camera
-  ${catkin_LIBRARIES}
-  )
-
-target_link_libraries(win_camera_nodelet
-  ${catkin_LIBRARIES}
-  win_camera
-  mf
-  mfplat
-  mfuuid
-  mfreadwrite
-  Mfsensorgroup
-  shlwapi
-  runtimeobject
-  )
 
 target_link_libraries(win_camera_node
-  ${catkin_LIBRARIES}
   win_camera
   mf
   mfplat
@@ -72,51 +68,44 @@ target_link_libraries(win_camera_node
   Mfsensorgroup
   shlwapi
   runtimeobject
-  )
+)
+
+ament_target_dependencies(win_camera_node
+  compressed_image_transport
+  image_transport
+  camera_info_manager
+  sensor_msgs
+  rclcpp
+)
 
 #############
 ## Install ##
 #############
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
 ## Mark executables and/or libraries for installation
-install(TARGETS win_camera win_camera_nodelet win_camera_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+install(TARGETS win_camera win_camera_node
+  ARCHIVE DESTINATION lib/${PROJECT_NAME}
+  LIBRARY DESTINATION lib/${PROJECT_NAME}
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 
 install(DIRECTORY include
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  )
+  DESTINATION include
+)
 
-# add xml file
-install(FILES win_camera_nodelets.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  )
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
+install(DIRECTORY
+  rviz
+  DESTINATION share/${PROJECT_NAME}/
+)
 
-#############
-## Testing ##
-#############
+install(DIRECTORY
+  camera_info
+  DESTINATION share/${PROJECT_NAME}/
+)
 
-roslint_cpp(
-  src/wincameranode.cpp src/wincameranodelet.cpp src/wincapture.cpp src/winrospublisher.cpp
-  )
-
-if (CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-  add_rostest_gtest(testWinCamera test/winCamera.test
-    test/testWinCamera.cpp)
-  target_link_libraries(testWinCamera ${PROJECT_NAME} ${catkin_LIBRARIES})
-
-  add_rostest_gtest(testWinCameraNoYaml test/WinCameraNoYaml.test
-    test/testWinCameraNoYaml.cpp)
-  target_link_libraries(testWinCameraNoYaml ${PROJECT_NAME} ${catkin_LIBRARIES})
-endif()
+ament_package()
