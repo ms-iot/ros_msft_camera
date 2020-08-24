@@ -1,5 +1,6 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
-#include "wincapture.h"
+#include <win_camera/wincapture.h>
+
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Foundation::Collections;

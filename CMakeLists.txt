@@ -30,6 +30,7 @@ find_package(ament_cmake REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(compressed_image_transport REQUIRED)
@@ -46,7 +47,27 @@ include_directories(
 )
 
 ## Declare a cpp library
-add_library(win_camera STATIC src/wincapture.cpp)
+add_library(win_camera SHARED
+  src/wincapture.cpp
+  src/win_camera_node.cpp
+)
+
+target_compile_definitions(win_camera PRIVATE "WIN_CAMERA_BUILDING_LIBRARY")
+
+rclcpp_components_register_nodes(
+  win_camera
+  "win_camera::CameraDriver"
+)
+
+target_link_libraries(win_camera
+  mf
+  mfplat
+  mfuuid
+  mfreadwrite
+  Mfsensorgroup
+  shlwapi
+  runtimeobject
+)
 
 ament_target_dependencies(win_camera
   compressed_image_transport
@@ -57,17 +78,10 @@ ament_target_dependencies(win_camera
 )
 
 ## Declare a cpp executable
-add_executable(win_camera_node src/wincameranode.cpp)
+add_executable(win_camera_node src/main.cpp)
 
 target_link_libraries(win_camera_node
   win_camera
-  mf
-  mfplat
-  mfuuid
-  mfreadwrite
-  Mfsensorgroup
-  shlwapi
-  runtimeobject
 )
 
 ament_target_dependencies(win_camera_node
@@ -83,11 +97,15 @@ ament_target_dependencies(win_camera_node
 #############
 
 ## Mark executables and/or libraries for installation
-install(TARGETS win_camera win_camera_node
-  ARCHIVE DESTINATION lib/${PROJECT_NAME}
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
+install(TARGETS win_camera
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS win_camera_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
-  )
+)
 
 install(DIRECTORY include
   DESTINATION include
