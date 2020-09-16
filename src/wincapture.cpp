@@ -221,7 +221,7 @@ namespace ros_msft_camera
         }
         catch (hresult_error const& ex)
         {
-            _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
+            _ERROR("%x:%s\n", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
             m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
         }
         if (m_bStreamingStarted)
@@ -239,7 +239,7 @@ namespace ros_msft_camera
             else if (FAILED(hr))
             {
                 hresult_error ex(hr);
-                _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
+                _ERROR("%x:%s\n", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
                 m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
             }
         }

@@ -58,8 +58,8 @@ TEST(MsftCameraNodeTest, getCameraInfo)
         EXPECT_EQ("plumb_bob", info->distortion_model);
 
         // width
-        EXPECT_EQ(2448, info->width);
-        EXPECT_EQ(2050, info->height);
+        EXPECT_EQ(1280, info->width);
+        EXPECT_EQ(720, info->height);
         waitForCB.notify_all();
     };
 

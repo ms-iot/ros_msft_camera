@@ -22,7 +22,8 @@ int main(int argc, char** argv)
         bool isDevice = true;
         float frameRate = 30;
         int32_t queueSize = PUBLISHER_QUEUE_SIZE;
-        winrt::com_ptr< ros_msft_camera::WindowsMFCapture> camera, camera1;
+        winrt::com_ptr< ros_msft_camera::WindowsMFCapture> camera;
+        winrt::event_token imagePubHandlerToken;
         std::string frame_id("camera");
         privateNode.param("frame_rate", frameRate, DEFAULT_FRAMERATE);
         privateNode.param("pub_queue_size", queueSize, PUBLISHER_QUEUE_SIZE);
@@ -108,7 +109,7 @@ int main(int argc, char** argv)
         auto rawPublisher = new WinRosPublisherImageRaw(privateNode, "image_raw", queueSize, frame_id, spCameraInfoManager.get());
 
         bool resChangeInProgress = false;
-        auto rosImagePubHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
+        winrt::delegate<winrt::hresult_error, winrt::hstring, IMFSample*> rosImagePubHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
         {
             if (pSample)
             {
@@ -138,6 +139,20 @@ int main(int argc, char** argv)
             }
             else
             {
+                if ((HRESULT)ex.code().value == MF_E_HW_MFT_FAILED_START_STREAMING)
+                {
+                    ROS_WARN("WindowsMFCapture streaming failed. Retrying with shared mode...\n");
+                    //  re-try with sharing mode
+                    camera->RemoveSampleHandler(imagePubHandlerToken);
+                    camera = nullptr;
+                    camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), false));
+                    
+                    camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
+                    camera->StartStreaming();
+                    imagePubHandlerToken = camera->AddSampleHandler(rosImagePubHandler);
+
+                    ROS_WARN("WindowsMFCapture is in shared mode. Config paramters may not be applied \n");
+                }
                 if ((HRESULT)ex.code().value == MF_E_END_OF_STREAM)
                 {
                     ROS_INFO("\nEOS");
@@ -146,38 +161,10 @@ int main(int argc, char** argv)
             }
         };
 
-        auto compressedSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
-        {
-            if (pSample)
-            {
-                ROS_INFO("Received SAmple compressed\n");
-
-            }
-            else
-            {
-                if ((HRESULT)ex.code().value == MF_E_END_OF_STREAM)
-                {
-                    ROS_INFO("\nEOS");
-                }
-                eventFinish.notify_all();
-            }
-        };
-
-        try
-        {
-            camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
-        }
-        catch (hresult_error const& ex)
-        {
-            ROS_WARN("WindowsMFCapture creation failed. Retrying with shared mode...");
-            // if creation failed, re-try with sharing mode
-            camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), false));
-            ROS_WARN("WindowsMFCapture is in shared mode. Config paramters may not be applied ");
-        }
-        //camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
+        camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
         camera->ChangeCaptureConfig(Width, Height, frameRate, videoFormat, true);
         camera->StartStreaming();
-        camera->AddSampleHandler(rosImagePubHandler);
+        imagePubHandlerToken = camera->AddSampleHandler(rosImagePubHandler);
 
 #ifdef TEST_SETCAMERAINFO
         Sleep(10000);
@@ -201,5 +188,9 @@ int main(int argc, char** argv)
     catch (hresult_error const& ex)
     {
         ROS_ERROR(winrt::to_string(ex.message() + L":" + winrt::to_hstring(ex.code())).c_str());
+    }
+    catch (...)
+    {
+        ROS_ERROR(winrt::to_string(L"\nError:" + winrt::to_hstring(winrt::to_hresult())).c_str());
     }
 }
