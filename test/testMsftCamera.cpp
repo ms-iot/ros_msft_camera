@@ -7,7 +7,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 
-TEST(WinCameraNode, getImage)
+TEST(MsftCameraNode, getImage)
 {
     std::mutex waitMutex;
     static std::condition_variable waitForCB;
@@ -16,14 +16,14 @@ TEST(WinCameraNode, getImage)
     void (*cb)(const sensor_msgs::Image::ConstPtr & image)
         = [](const sensor_msgs::Image::ConstPtr& image)
     {
-        EXPECT_EQ("WinCamera1", image->header.frame_id);
+        EXPECT_EQ("MsftCamera1", image->header.frame_id);
         EXPECT_EQ(720, image->height);
         EXPECT_EQ(1280, image->width);
         EXPECT_EQ("bgra8", image->encoding);
         waitForCB.notify_all();
     };
     std::unique_lock<std::mutex> ul(waitMutex);
-    ros::Subscriber sub = node.subscribe("/win_camera_node/image_raw",
+    ros::Subscriber sub = node.subscribe("/msft_camera_node/image_raw",
         1,
         cb);
 
@@ -33,7 +33,7 @@ TEST(WinCameraNode, getImage)
     spinner.stop();
 }
 
-TEST(WinCameraNodeTest, getCameraInfo)
+TEST(MsftCameraNodeTest, getCameraInfo)
 {
     std::mutex waitMutex;
     static std::condition_variable waitForCB;
@@ -41,7 +41,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
     {
-        EXPECT_EQ("WinCamera1", info->header.frame_id);
+        EXPECT_EQ("MsftCamera1", info->header.frame_id);
         // K
         EXPECT_EQ(9, info->K.size());
         EXPECT_NEAR(4827.94, info->K.at(0), 0.001);
@@ -64,7 +64,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
     };
 
     std::unique_lock<std::mutex> ul(waitMutex);
-    ros::Subscriber sub = node.subscribe("/win_camera_node/camera_info",
+    ros::Subscriber sub = node.subscribe("/msft_camera_node/camera_info",
         1,
         cb);
 
@@ -77,7 +77,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
 int main(int argc, char** argv)
 {
     testing::InitGoogleTest(&argc, argv);
-    ros::init(argc, argv, "testWinCamera");
+    ros::init(argc, argv, "testMsftCamera");
 
     return RUN_ALL_TESTS();
 }

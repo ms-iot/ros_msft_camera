@@ -1,0 +1,10 @@
+<library path="lib/libmsft_camera_nodelet">
+
+  <class name="ros_win_camera/MsftCameraNodelet"
+	 type="ros_win_camera::MsftCameraNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      Microsoft Media Foundation based camera driver nodelet.
+    </description>
+  </class>
+
+</library>

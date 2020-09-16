@@ -18,7 +18,7 @@ int i = 0;\
                 _INFO("\nNumber of tranforms in Chain: %d", i - 1);\
 }
 
-namespace ros_win_camera
+namespace ros_msft_camera
 {
     WindowsMFCapture::WindowsMFCapture(bool isDevice, const winrt::hstring& link, bool isController /*=true*/)
         :m_nRefCount(1),

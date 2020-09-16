@@ -7,20 +7,20 @@
 #include <gtest/gtest.h>
 #include<thread>
 
-TEST(WinCameraNode, getImage)
+TEST(MsftCameraNode, getImage)
 {
     ros::NodeHandle node;
     std::mutex waitMutex;
     static std::condition_variable waitForCB;
     void (*cb)(const sensor_msgs::Image::ConstPtr & image) = [](const sensor_msgs::Image::ConstPtr& image)
     {
-        EXPECT_EQ("WinCamera2", image->header.frame_id);
+        EXPECT_EQ("MsftCamera2", image->header.frame_id);
         EXPECT_EQ(720, image->height);
         EXPECT_EQ(1280, image->width);
         EXPECT_EQ("bgra8", image->encoding);
         waitForCB.notify_all();
     };
-    ros::Subscriber sub = node.subscribe("/win_camera_no_yaml/image_raw",
+    ros::Subscriber sub = node.subscribe("/msft_camera_no_yaml/image_raw",
         1,
         cb);
 
@@ -33,7 +33,7 @@ TEST(WinCameraNode, getImage)
 
 }
 
-TEST(WinCameraNodeTest, getCameraInfo)
+TEST(MsftCameraNodeTest, getCameraInfo)
 {
     ros::NodeHandle node;
     std::mutex waitMutex;
@@ -42,7 +42,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
     void (*cb)(const sensor_msgs::CameraInfo::ConstPtr & info)
         = [](const sensor_msgs::CameraInfo::ConstPtr& info)
     {
-        EXPECT_EQ("WinCamera2", info->header.frame_id);
+        EXPECT_EQ("MsftCamera2", info->header.frame_id);
         // K
         EXPECT_EQ(9, info->K.size());
         EXPECT_NEAR(0.0, info->K.at(0), 0.001);
@@ -58,7 +58,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
         waitForCB.notify_all();
     };
 
-    ros::Subscriber sub = node.subscribe("/win_camera_no_yaml/camera_info",
+    ros::Subscriber sub = node.subscribe("/msft_camera_no_yaml/camera_info",
         1,
         cb);
 
@@ -73,7 +73,7 @@ TEST(WinCameraNodeTest, getCameraInfo)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "testWinCameraNoYaml");
+    ros::init(argc, argv, "testMsftCameraNoYaml");
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
