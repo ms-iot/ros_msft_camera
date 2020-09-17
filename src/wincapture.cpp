@@ -18,7 +18,7 @@ int i = 0;\
                 _INFO("\nNumber of tranforms in Chain: %d", i - 1);\
 }
 
-namespace ros_win_camera
+namespace ros_msft_camera
 {
     WindowsMFCapture::WindowsMFCapture(bool isDevice, const winrt::hstring& link, bool isController /*=true*/)
         :m_nRefCount(1),
@@ -221,7 +221,7 @@ namespace ros_win_camera
         }
         catch (hresult_error const& ex)
         {
-            _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
+            _ERROR("%x:%s\n", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
             m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
         }
         if (m_bStreamingStarted)
@@ -239,7 +239,7 @@ namespace ros_win_camera
             else if (FAILED(hr))
             {
                 hresult_error ex(hr);
-                _ERROR("%x:%s", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
+                _ERROR("%x:%s\n", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
                 m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
             }
         }

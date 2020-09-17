@@ -7,22 +7,22 @@
 #include <nodelet/nodelet.h>
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
-namespace ros_win_camera
+namespace ros_msft_camera
 {
     const int32_t PUBLISHER_QUEUE_SIZE = 4;
 
-    class WinCameraNodelet : public nodelet::Nodelet
+    class MsftCameraNodelet : public nodelet::Nodelet
     {
 
     public:
-        WinCameraNodelet()
+        MsftCameraNodelet()
             : m_Width(640),
             m_Height(480),
             m_frameRate(30.0),
             m_QueueSize(PUBLISHER_QUEUE_SIZE)
         {
         }
-        ~WinCameraNodelet()
+        ~MsftCameraNodelet()
         {
             m_camera->StopStreaming();
             m_conditionFinish.notify_all();
@@ -54,7 +54,7 @@ namespace ros_win_camera
                 else
                 {
                     // no source path is specified; we default to first enumerated camera
-                    videoSourcePath = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
+                    videoSourcePath = winrt::to_string(ros_msft_camera::WindowsMFCapture::EnumerateCameraLinks(false).First().Current());
                 }
             }
 
@@ -131,7 +131,7 @@ namespace ros_win_camera
             std::unique_lock<std::mutex> ul(mutexFinish);
             m_conditionFinish.wait(ul);
             m_camera.attach(WindowsMFCapture::CreateInstance(isDevice, winrt::to_hstring(videoSourcePath), true));
-            //m_camera.attach(new ros_win_camera::WindowsMFCapture(isDevice, winrt::to_hstring(videoSourcePath)));
+            
             m_camera->StartStreaming();
             m_camera->ChangeCaptureConfig(m_Width, m_Height, m_frameRate, MFVideoFormat_ARGB32);
             m_camera->AddSampleHandler(handler);
@@ -139,7 +139,7 @@ namespace ros_win_camera
 
         }
         std::condition_variable m_conditionFinish;
-        winrt::com_ptr< ros_win_camera::WindowsMFCapture> m_camera;
+        winrt::com_ptr< ros_msft_camera::WindowsMFCapture> m_camera;
         int32_t m_Width, m_Height;
         int32_t m_QueueSize;
         float m_frameRate;

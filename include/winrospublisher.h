@@ -9,11 +9,11 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/image_encodings.h>
 #include <camera_info_manager/camera_info_manager.h>
-#include <win_camera\MFSample.h>
+#include <msft_camera\MFSample.h>
 #include <memory>
 using namespace winrt;
 namespace enc = sensor_msgs::image_encodings;
-namespace ros_win_camera
+namespace ros_msft_camera
 {
     class WinRosPublisherBase
     {
@@ -162,12 +162,12 @@ namespace ros_win_camera
         WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
             : WinRosPublisherBase(node, topic_name, buffer_size, frame_id, pCameraInfoManager)
         {
-            m_MFSamplePublisher = m_nodeHandle.advertise<win_camera::MFSample>(topic_name, 2);
+            m_MFSamplePublisher = m_nodeHandle.advertise<msft_camera::MFSample>(topic_name, 2);
         }
         virtual ~WinRosPublisherMFSample() = default;
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {
-            win_camera::MFSamplePtr sampleMsg = boost::make_shared<win_camera::MFSample>();
+            msft_camera::MFSamplePtr sampleMsg = boost::make_shared<msft_camera::MFSample>();
             sampleMsg->header = m_cameraInfo.header;
             sampleMsg->pSample = (UINT64)pSample;
             m_MFSamplePublisher.publish(*sampleMsg);

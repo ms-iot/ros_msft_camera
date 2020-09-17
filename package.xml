@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>win_camera</name>
-  <version>0.1.0</version>
-  <description>win_camera uses Windows Media Foundation to capture camera image.
+  <name>msft_camera</name>
+  <version>0.1.1</version>
+  <description>msft_camera uses Windows Media Foundation to capture camera image.
   </description>
   <maintainer email="susohoni@microsoft.com">Sudhanshu Sohoni</maintainer>
   <license>MIT</license>
@@ -26,7 +26,7 @@
   <run_depend>camera_info_manager</run_depend>
 
   <export>
-    <nodelet plugin="${prefix}/win_camera_nodelets.xml"/>
+    <nodelet plugin="${prefix}/msft_camera_nodelets.xml"/>
   </export>
 
 </package>

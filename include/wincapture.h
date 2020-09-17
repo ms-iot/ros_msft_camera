@@ -9,7 +9,7 @@
 #include <winrt\Windows.Foundation.Collections.h>
 #include <winrt\Windows.Devices.Enumeration.h>
 #include <winrt\Windows.System.Threading.h>
-namespace ros_win_camera
+namespace ros_msft_camera
 {
 
     class SRCallBackWrapper : public IMFSourceReaderCallback
