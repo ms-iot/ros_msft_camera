@@ -30,8 +30,12 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  external/Windows-Camera/Samples/NetworkMediaStreamer/Common/inc
   )
 
+#if(ENABLE_RTSP)
+include(external/CmakeLists.txt)
+#endif(ENABLE_RTSP)
 ## Declare a cpp library
 add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
 
@@ -42,7 +46,7 @@ set_target_properties(msft_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS 
 
 ## Declare a cpp executable
 add_executable(msft_camera_node src/msftcameranode.cpp)
-add_dependencies(msft_camera_node win_camera)
+add_dependencies(msft_camera_node win_camera RTPMediaStreamer RTSPServer)
 add_dependencies(msft_camera_nodelet win_camera)
 
 ## Specify libraries to link a library or executable target against
@@ -72,6 +76,8 @@ target_link_libraries(msft_camera_node
   Mfsensorgroup
   shlwapi
   runtimeobject
+  RTPMediaStreamer 
+  RTSPServer
   )
 
 #############
