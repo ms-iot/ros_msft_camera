@@ -7,6 +7,8 @@ The node publishes image frames using image_transport camera publisher on a `ima
 This source also contains camera nodelet to enable sharing IMFSample pointers directly into another nodelet with the same process to enable zero copy and also share GPU surfaces
 This is enabled by using the MFSample Publisher which published IMFSample pointer via a custom msg. This path is still experimental and untested.
 
+This source also contains feature to stream the video over RTSP/RTP using H.264 video compression.
+The RTSP/RTP streaming code is a sub-module from the [Windows-Camera repository](https://github.com/microsoft/Windows-Camera/tree/release/NetworkVideoStreamer_1_0)
 ## System Requirement
 
   * Microsoft Windows 10 64-bit
@@ -21,6 +23,23 @@ You can begin with the below launch file. It will bring up RViz tool where you c
 ```
 roslaunch msft_camera test/camnode.launch
 ```
+
+To enable RTSP streaming you will need to create a recursive clone of this repository using the following command:  
+```
+git clone https://github.com/ms-iot/ros_msft_camera --recursive
+```
+
+Then at the top level folder (i.e. parallel to the src folder) use the command  
+
+```
+catkin_make -DENABLE_RTSP=1
+```
+This will build the node with RTP/RTSP streaming capability. 
+To launch the node with streaming enabled, use the following command:
+
+```
+roslaunch msft_camera_rtsp test/camnodeRTSP.launch
+``` 
 
 ## Published Topics
 
