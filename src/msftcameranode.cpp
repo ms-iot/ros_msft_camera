@@ -25,7 +25,6 @@ constexpr int32_t DEFAULT_RTSP_PORT = 8554;
 const GUID g_rosPrefferdVideoFormat = MFVideoFormat_ARGB32;
 const GUID g_rtspPrefferdVideoFormat = MFVideoFormat_NV12;
 
-//#define ENABLE_RTSP
 class MsftCameraNode : ros::NodeHandle
 {
 public:

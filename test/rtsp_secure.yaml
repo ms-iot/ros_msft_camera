@@ -1,0 +1,3 @@
+rtsp_port: 8554
+rtsp_AddCredentials: {user: pass}
+rtsps_cert_subject: "localhost"

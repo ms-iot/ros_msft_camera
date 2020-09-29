@@ -35,6 +35,7 @@ include_directories(
   )
 
 if(ENABLE_RTSP)
+add_definitions(-DENABLE_RTSP)
 include(external/CmakeLists.txt)
 endif(ENABLE_RTSP)
 
