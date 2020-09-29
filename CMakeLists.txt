@@ -9,6 +9,7 @@ find_package(Boost REQUIRED COMPONENTS system thread)
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set (CMAKE_CXX_EXTENSIONS FALSE)
+set (CMAKE_CXX_FLAGS "/EHsc")
 
 roslint_cpp()
 add_message_files(
