@@ -34,7 +34,7 @@ namespace ros_msft_camera
             auto privateNode = getPrivateNodeHandle();
             std::string videoSourcePath = "";
             bool isDevice = true;
-            std::string frame_id("camera");
+            std::string frameId("camera");
             std::string cameraInfoUrl("");
             privateNode.param("frame_rate", m_frameRate, 30.0f);
             privateNode.param("pub_queue_size", m_QueueSize, PUBLISHER_QUEUE_SIZE);
@@ -42,7 +42,7 @@ namespace ros_msft_camera
             privateNode.param("image_width", m_Width, 640);
             privateNode.param("image_height", m_Height, 480);
 
-            privateNode.param("frame_id", frame_id, std::string("camera"));
+            privateNode.param("frame_id", frameId, std::string("camera"));
             privateNode.getParam("videoDeviceId", videoSourcePath);
             if (videoSourcePath.empty())
             {
@@ -58,8 +58,8 @@ namespace ros_msft_camera
                 }
             }
 
-            m_spRawPublisher = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", m_QueueSize, frame_id, m_spCameraInfoManager.get());
-            m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", m_QueueSize, frame_id, m_spCameraInfoManager.get());
+            m_spRawPublisher = std::make_shared<WinRosPublisherImageRaw>(privateNode, "image_raw", m_QueueSize, frameId, m_spCameraInfoManager);
+            m_spMFSamplePublisher = std::make_shared<WinRosPublisherMFSample>(privateNode, "MFSample", m_QueueSize, frameId, m_spCameraInfoManager);
 
             m_spCameraInfoManager = std::make_shared<camera_info_manager::CameraInfoManager>(privateNode, "frame_id");
             if (privateNode.getParam("camera_info_url", cameraInfoUrl))
@@ -110,22 +110,6 @@ namespace ros_msft_camera
                 }
             };
 
-            auto compressedSampleHandler = [&](winrt::hresult_error ex, winrt::hstring msg, IMFSample* pSample)
-            {
-                if (pSample)
-                {
-                    ROS_INFO("Received compressed Sample\n");
-                }
-                else
-                {
-                    if ((HRESULT)ex.code().value == MF_E_END_OF_STREAM)
-                    {
-                        ROS_INFO("\nEOS");
-                    }
-
-                    m_conditionFinish.notify_all();
-                }
-            };
             std::mutex mutexFinish;
 
             std::unique_lock<std::mutex> ul(mutexFinish);

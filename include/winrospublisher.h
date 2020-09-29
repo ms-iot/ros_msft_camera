@@ -11,6 +11,7 @@
 #include <camera_info_manager/camera_info_manager.h>
 #include <msft_camera\MFSample.h>
 #include <memory>
+#include <queue>
 using namespace winrt;
 namespace enc = sensor_msgs::image_encodings;
 namespace ros_msft_camera
@@ -18,14 +19,13 @@ namespace ros_msft_camera
     class WinRosPublisherBase
     {
     public:
-        WinRosPublisherBase(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager *pCameraInfoManager)
+        WinRosPublisherBase(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, std::shared_ptr<camera_info_manager::CameraInfoManager> pCameraInfoManager)
             : m_nodeHandle(node),
             m_topicName(topic_name),
             m_i32BufferSize(buffer_size),
             m_frameID(frame_id),
             m_spCameraInfoManager(pCameraInfoManager)
         {
-
         }
         virtual ~WinRosPublisherBase() = default;
         virtual void OnSample(IMFSample *pSample, UINT32 u32Width, UINT32 u32Height) = 0;
@@ -44,7 +44,7 @@ namespace ros_msft_camera
     class WinRosPublisherImageRaw : WinRosPublisherBase
     {
     public:
-        WinRosPublisherImageRaw(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
+        WinRosPublisherImageRaw(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, std::shared_ptr<camera_info_manager::CameraInfoManager> pCameraInfoManager)
             : WinRosPublisherBase(node,topic_name,buffer_size,frame_id, pCameraInfoManager)
             , m_imageTransport(m_nodeHandle)
         {
@@ -159,27 +159,36 @@ namespace ros_msft_camera
     class WinRosPublisherMFSample : WinRosPublisherBase
     {
     public:
-        WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
-            : WinRosPublisherBase(node, topic_name, buffer_size, frame_id, pCameraInfoManager)
+        WinRosPublisherMFSample(ros::NodeHandle& node, const std::string& topic_name, int32_t queue_size, const std::string& frame_id, std::shared_ptr<camera_info_manager::CameraInfoManager> pCameraInfoManager)
+            : WinRosPublisherBase(node, topic_name, queue_size, frame_id, pCameraInfoManager)
+            , m_queueSize(queue_size)
         {
-            m_MFSamplePublisher = m_nodeHandle.advertise<msft_camera::MFSample>(topic_name, 2);
+            m_MFSamplePublisher = m_nodeHandle.advertise<msft_camera::MFSample>(topic_name, queue_size);
         }
         virtual ~WinRosPublisherMFSample() = default;
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {
+            m_sampleQueue.emplace(nullptr);
+            m_sampleQueue.back().copy_from(pSample);
             msft_camera::MFSamplePtr sampleMsg = boost::make_shared<msft_camera::MFSample>();
             sampleMsg->header = m_cameraInfo.header;
             sampleMsg->pSample = (UINT64)pSample;
             m_MFSamplePublisher.publish(*sampleMsg);
+            if (m_sampleQueue.size() > m_queueSize)
+            {
+                m_sampleQueue.pop();
+            }
         }
     private:
         ros::Publisher m_MFSamplePublisher;
+        std::queue<winrt::com_ptr<IMFSample>> m_sampleQueue;
+        size_t m_queueSize;
     };
 
     class WinRosPublisherCompressed : WinRosPublisherBase
     {
     public:
-        WinRosPublisherCompressed(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, camera_info_manager::CameraInfoManager* pCameraInfoManager)
+        WinRosPublisherCompressed(ros::NodeHandle& node, const std::string& topic_name, int32_t buffer_size, const std::string& frame_id, std::shared_ptr<camera_info_manager::CameraInfoManager> pCameraInfoManager)
             : WinRosPublisherBase(node, topic_name, buffer_size, frame_id, pCameraInfoManager)
             , m_imageTransport(m_nodeHandle)
         {
