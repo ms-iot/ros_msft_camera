@@ -47,6 +47,7 @@ roslaunch msft_camera_rtsp test/camnodeRTSP.launch
 ``` 
 After the node has been successfully launched with RTSP enabled, you can view the video on any streaming video player that supports RTSP using the url:  
 `rtsp://<ip-address-of-machine-running-the-node>:<rtsp_port>  
+
 If using secure RTSP over TLS, use a video player that supports RTSPS with following url:  
 `rtsps://<ip-address-of-machine-running-the-node>:<rtsp_port> 
 
