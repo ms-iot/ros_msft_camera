@@ -86,9 +86,9 @@ For generic parameter usage example see [camnode.launch](test/camnode.launch)
 Only available if the source is built as per the [instructions for streaming](#camera-node-with-rtsprtp-streaming)  
   
   * `~rtsp_port` (integer, default: `8554`)
-    > The network port on which the RTSP server should listen for incoming connections.
-    > If this parameter is *not present* in the parameter server, then RTSP server is not started.
-    > If this parameter is *present and empty*, the RTSP server is started with the default port number 8554
+    > The network port on which the RTSP server should listen for incoming connections.  
+    > If this parameter is *not present* in the parameter server, then RTSP server is not started.  
+    > If this parameter is *present and empty*, the RTSP server is started with the default port number *8554*
 
   * `~rtp_bitrate` (integer, default: `1000*image_width`)
     > The bitrate in bps to configure the video encoder used for RTP streaming.
@@ -100,8 +100,10 @@ Only available if the source is built as per the [instructions for streaming](#c
     > A list containing old usernames to be removed from password vault to be used for RTSP digest authentication. 
 
   * `~rtsps_cert_subject` (string, default: ``)
-    > The certificate subject name to search in the "Local Machine\My" certificate store for RTSP**S** secure streaming over TLS.
-    > Note: to use RTSP**S** (secure RTSP over TLS), a valid server certificate must be imported to the "Local machine\My" certificate store.
+    > The certificate subject name to search in the "Local Machine\My" certificate store for RTSP**S** secure streaming over TLS.  
+    > Note: To use RTSP**S** (secure RTSP over TLS), a valid server certificate must be imported to the "Local machine\My" certificate store.  
+    > If this parameter is *not present*, the stream is not secure and RTSP and RTP communication will happen in the clear.  
+    > If this parameter is *present and valid*, RTSP communication will *only* happen securely over TLS. The remote client/player then has the ability to negotiate RTP via the secure TCP channel over RTSP protocol.
 
 For RTSP parameter usage example see [camnodeRTSP.launch](test/camnodeRTSP.launch)
 
