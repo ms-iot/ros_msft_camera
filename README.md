@@ -8,7 +8,7 @@ This source also contains a feature to stream out the captured video over RTSP/R
 The streaming feature supports the following:  
 - H.264 over RTP (session negotiation via RTSP)
 - RTSP digest and basic authentication 
-- RTSP over secure(TLS) connection (RTSPS)
+- RTSP over secure(TLS) connection (RTSPS)  
 The RTSP/RTP streaming related libraries are a part of a sub-module from the [Windows-Camera repository](https://github.com/microsoft/Windows-Camera/tree/release/NetworkVideoStreamer_1_0)
 For more details on streaming [visit this page](https://github.com/microsoft/Windows-Camera/blob/release/NetworkVideoStreamer_1_0/README.md)  
 
@@ -68,7 +68,7 @@ roslaunch msft_camera_rtsp test/camnodeRTSP.launch
     > Symbolic link to the camera to open. if not set default is the first enumerated camera on the system.
     > Set the Symbolic link to value "Interactive" to configure the node to list the available cameras on system and prompt for user selection at startup
 
-   * `~videoUrl` (string, default: ``)
+  * `~videoUrl` (string, default: ``)
     > Video URL to be used (instead of an actual camera device) as a source of video frames to be published by the node.
     > At present, file paths and rtsp urls are supported as video source. if both parameters, videoDeviceId and videoUrl, are set then videoDeviceId is used by the node.
 
@@ -78,7 +78,7 @@ roslaunch msft_camera_rtsp test/camnodeRTSP.launch
 For generic parameter usage example see [camnode.launch](test/camnode.launch) 
 
 ### RTSP Streaming Parameters  
-    Only available if the source is built as per the [instructions for streaming](#camera-node-with-RTSP/RTP-streaming)  
+Only available if the source is built as per the [instructions for streaming](#camera-node-with-RTSP/RTP-streaming)  
   
   * `~rtsp_port` (integer, default: `8554`)
     > The network port on which the RTSP server should listen for incoming connections.
