@@ -232,7 +232,7 @@ private:
                 });
             for (int l = (int)LoggerType::ERRORS; l < (int)LoggerType::LOGGER_MAX; l++)
             {
-                EventRegistrationToken t;
+                ::EventRegistrationToken t;
                 m_spRTSPServer->AddLogHandler((LoggerType)l, rtsplogger.as<ABI::LogHandler>().get(), &t);
             }
         }
