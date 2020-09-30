@@ -83,7 +83,7 @@ If using secure RTSP over TLS, use a video player that supports RTSPS with follo
 For generic parameter usage example see [camnode.launch](test/camnode.launch) 
 
 ### RTSP Streaming Parameters  
-Only available if the source is built as per the [instructions for streaming](#camera-node-with-rtsp/rtp-streaming)  
+Only available if the source is built as per the [instructions for streaming](#camera-node-with-rtsprtp-streaming)  
   
   * `~rtsp_port` (integer, default: `8554`)
     > The network port on which the RTSP server should listen for incoming connections.
