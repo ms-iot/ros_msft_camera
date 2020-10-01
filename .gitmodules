@@ -1,0 +1,3 @@
+[submodule "external/Windows-Camera"]
+	path = external/Windows-Camera
+	url = https://github.com/microsoft/Windows-Camera/

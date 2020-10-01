@@ -10,6 +10,8 @@ set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set (CMAKE_CXX_EXTENSIONS FALSE)
 
+add_compile_options(/EHsc)
+
 roslint_cpp()
 add_message_files(
    FILES
@@ -30,7 +32,13 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  external/Windows-Camera/NetworkMediaStreamer/Common/inc
   )
+
+if(ENABLE_RTSP)
+add_definitions(-DENABLE_RTSP)
+include(external/CmakeLists.txt)
+endif(ENABLE_RTSP)
 
 ## Declare a cpp library
 add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
@@ -43,6 +51,10 @@ set_target_properties(msft_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS 
 ## Declare a cpp executable
 add_executable(msft_camera_node src/msftcameranode.cpp)
 add_dependencies(msft_camera_node win_camera)
+if(ENABLE_RTSP)
+add_dependencies(msft_camera_node RTPMediaStreamer RTSPServer)
+endif(ENABLE_RTSP)
+
 add_dependencies(msft_camera_nodelet win_camera)
 
 ## Specify libraries to link a library or executable target against
@@ -50,28 +62,32 @@ target_link_libraries(win_camera
   ${catkin_LIBRARIES}
   )
 
+if(ENABLE_RTSP)
+set(RTSP_LIBS 
+    RTPMediaStreamer 
+    RTSPServer)
+endif(ENABLE_RTSP)
+
+set (COMMON_LIBS 
+     win_camera
+     mf
+     mfplat
+     mfuuid
+     mfreadwrite
+     Mfsensorgroup
+     shlwapi
+     runtimeobject)
+
 target_link_libraries(msft_camera_nodelet
   ${catkin_LIBRARIES}
-  win_camera
-  mf
-  mfplat
-  mfuuid
-  mfreadwrite
-  Mfsensorgroup
-  shlwapi
-  runtimeobject
+  ${COMMON_LIBS}
   )
+
 
 target_link_libraries(msft_camera_node
   ${catkin_LIBRARIES}
-  win_camera
-  mf
-  mfplat
-  mfuuid
-  mfreadwrite
-  Mfsensorgroup
-  shlwapi
-  runtimeobject
+  ${COMMON_LIBS}
+  ${RTSP_LIBS}
   )
 
 #############

@@ -97,25 +97,25 @@ namespace ros_msft_camera
     void WindowsMFCapture::StopStreaming()
     {
         std::lock_guard g(m_apiGuardMutex);
-        if (!m_bStreamingStarted) return;
-
-        std::condition_variable eventCompletion;
-        std::mutex m;
-        std::unique_lock<std::mutex> ul(m);
-
-        EnterCriticalSection(&m_critsec);
-        m_configEventTokenList.Append(m_configEvent.add([&]()
+        if (m_bStreamingStarted)
         {
-            m_bStreamingStarted = false;
-            check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, FALSE));
-            eventCompletion.notify_one();
-        }));
-        LeaveCriticalSection(&m_critsec);
-        check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
+            std::condition_variable eventCompletion;
+            std::mutex m;
+            std::unique_lock<std::mutex> ul(m);
 
-        // wait for the config-stop event to complete
-        eventCompletion.wait(ul);
+            EnterCriticalSection(&m_critsec);
+            m_configEventTokenList.Append(m_configEvent.add([&]()
+                {
+                    m_bStreamingStarted = false;
+                    check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, FALSE));
+                    eventCompletion.notify_one();
+                }));
+            LeaveCriticalSection(&m_critsec);
+            check_hresult(spSourceReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM));
 
+            // wait for the config-stop event to complete
+            eventCompletion.wait(ul);
+        }
         _INFO("\nStopped streaming complete!\n");
         m_captureCallbackEvent(hresult_error(MF_E_END_OF_STREAM), L"Sample Stopped", nullptr);
     }
@@ -221,6 +221,7 @@ namespace ros_msft_camera
         }
         catch (hresult_error const& ex)
         {
+            m_bStreamingStarted = false;
             _ERROR("%x:%s\n", (unsigned int)ex.code(), winrt::to_string(ex.message()).c_str());
             m_captureCallbackEvent(ex, L":Trying to read sample in callback", nullptr);
         }
