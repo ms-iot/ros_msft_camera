@@ -18,8 +18,8 @@ ${CMAKE_CURRENT_SOURCE_DIR}/external/Windows-Camera/NetworkMediaStreamer/RTSPSer
 ${CMAKE_CURRENT_SOURCE_DIR}/external/Windows-Camera/NetworkMediaStreamer/RTSPServer/src/RtspSession.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/external/Windows-Camera/NetworkMediaStreamer/RTSPServer/src/SocketWrapper.cpp)
 
-target_compile_definitions(RTPMediaStreamer PRIVATE RTPMEDIASTREAMER_EXPORTS)
-target_compile_definitions(RTSPServer PRIVATE RTSPSERVER_EXPORTS)
+target_compile_definitions(RTPMediaStreamer PRIVATE RTPMEDIASTREAMER_EXPORTS UNICODE)
+target_compile_definitions(RTSPServer PRIVATE RTSPSERVER_EXPORTS UNICODE)
 
 target_include_directories(NetworkMediaStreamerBase PRIVATE 
 ${CMAKE_CURRENT_SOURCE_DIR}/external/Windows-Camera/NetworkMediaStreamer/Common/inc
