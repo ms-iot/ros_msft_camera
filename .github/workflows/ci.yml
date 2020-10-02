@@ -9,19 +9,21 @@ on:
 jobs:
   build:
     runs-on: [windows-latest]
+    strategy:
+      matrix:
+        ROSDISTRO: [melodic, noetic]
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
         path: src
-    - name: Install The Latest ROS Release
-      shell: cmd
-      run: |
-        choco sources add -n=roswin -s https://aka.ms/ros/public --priority 1
-        choco install ros-melodic-desktop_full -y
     - name: Build
       shell: cmd
       run: |
+        choco sources add -n=roswin -s https://aka.ms/ros/public --priority 1
+        choco install ros-%ROSDISTRO%-desktop_full -y --no-progress
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
-        call "c:\opt\ros\melodic\x64\setup.bat"
+        call "c:\opt\ros\%ROSDISTRO%\x64\setup.bat"
         catkin_make
+      env:
+        ROSDISTRO: ${{ matrix.ROSDISTRO }}
