@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - master
-      - seanyen/**
+  schedule:
+    # every Monday
+    - cron:  '0 0 * * 1'
 
 jobs:
   build:
