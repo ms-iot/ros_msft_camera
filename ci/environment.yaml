@@ -8,7 +8,7 @@ dependencies:
   - vcstool
   - rosdep
   - console_bridge
-  - boost=1.72
+  - boost=1.68
   - tinyxml2
   - poco
   - bzip2
