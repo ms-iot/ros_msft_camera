@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: [windows-latest]
     strategy:
+      fail-fast: false
       matrix:
         ROSDISTRO: [melodic, noetic]
     steps:
@@ -17,12 +18,17 @@ jobs:
       with:
         submodules: recursive
         path: src
-    - name: Build
+    - name: Install
       shell: cmd
       run: |
         choco sources add -n=roswin -s https://aka.ms/ros/public --priority 1
         choco install ros-%ROSDISTRO%-desktop_full -y --no-progress
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+      env:
+        ROSDISTRO: ${{ matrix.ROSDISTRO }}
+    - name: Install
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
         call "c:\opt\ros\%ROSDISTRO%\x64\setup.bat"
         catkin_make
       env:
