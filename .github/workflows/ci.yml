@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - seanyen/**
 
 jobs:
   build:
