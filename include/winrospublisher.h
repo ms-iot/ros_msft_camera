@@ -9,7 +9,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/image_encodings.h>
 #include <camera_info_manager/camera_info_manager.h>
-#include <msft_camera\MFSample.h>
+#include <std_msgs/UInt64.h>
 #include <memory>
 #include <queue>
 using namespace winrt;
@@ -108,7 +108,7 @@ namespace ros_msft_camera
                         ros_image->step = -Stride;
                         size_t size = ros_image->step * u32Height;
                         ros_image->data.resize(size);
-                        for (int i = 0; i < u32Height; i++)
+                        for (uint32_t i = 0; i < u32Height; i++)
                         {
                             memcpy(ros_image->data.data(), pix + Stride * i, -Stride);
                         }
@@ -163,17 +163,16 @@ namespace ros_msft_camera
             : WinRosPublisherBase(node, topic_name, queue_size, frame_id, pCameraInfoManager)
             , m_queueSize(queue_size)
         {
-            m_MFSamplePublisher = m_nodeHandle.advertise<msft_camera::MFSample>(topic_name, queue_size);
+            m_MFSamplePublisher = m_nodeHandle.advertise<std_msgs::UInt64>(topic_name, queue_size);
         }
         virtual ~WinRosPublisherMFSample() = default;
         void OnSample(IMFSample* pSample, UINT32 u32Width, UINT32 u32Height)
         {
             m_sampleQueue.emplace(nullptr);
             m_sampleQueue.back().copy_from(pSample);
-            msft_camera::MFSamplePtr sampleMsg = boost::make_shared<msft_camera::MFSample>();
-            sampleMsg->header = m_cameraInfo.header;
-            sampleMsg->pSample = (UINT64)pSample;
-            m_MFSamplePublisher.publish(*sampleMsg);
+            std_msgs::UInt64 sampleMsg;
+            sampleMsg.data = (UINT64)pSample;
+            m_MFSamplePublisher.publish(sampleMsg);
             if (m_sampleQueue.size() > m_queueSize)
             {
                 m_sampleQueue.pop();
