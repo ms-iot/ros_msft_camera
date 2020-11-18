@@ -1,0 +1,2 @@
+rtsp_port: 8554
+rtsp_AddCredentials: {user: pass}
