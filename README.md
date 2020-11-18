@@ -15,7 +15,7 @@ For more details on streaming [visit this page](https://github.com/microsoft/Win
 ## System Requirement
 
   * Microsoft Windows 10 64-bit
-  * [ROS1 Installation](http://wiki.ros.org/Installation/Windows) (`Melodic` is recommended.)
+  * [ROS1 Installation](http://wiki.ros.org/Installation/Windows)
   
 ## Getting Started
 
