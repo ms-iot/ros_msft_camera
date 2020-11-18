@@ -25,7 +25,7 @@ To run this node, a camera will be required to be installed and ready to use on 
 You can begin with the below launch file. It will bring up RViz tool where you can see the image stream from your camera.
 
 ```
-roslaunch msft_camera test/camnode.launch
+roslaunch ros_msft_camera ros_msft_camera.launch
 ```
 
 ### Camera node with RTSP/RTP streaming
@@ -43,7 +43,7 @@ This will build the node with RTP/RTSP streaming capability.
 To launch the node with streaming enabled, use the following command:
 
 ```
-roslaunch msft_camera_rtsp test/camnodeRTSP.launch
+roslaunch ros_msft_camera ros_msft_camera_rtsp.launch
 ``` 
 After the node has been successfully launched with RTSP enabled, you can view the video on any streaming video player that supports RTSP using the url:  
 > `rtsp://<ip-address-of-machine-running-the-node>:<rtsp_port>`
