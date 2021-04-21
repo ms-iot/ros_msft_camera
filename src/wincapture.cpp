@@ -37,6 +37,7 @@ namespace ros_msft_camera
         }
         else
         {
+            m_bIsController = false;
             InitCaptureWithUrl(link);
         }
     }
@@ -167,14 +168,7 @@ namespace ros_msft_camera
                     winrt::com_ptr <IMFMediaType> spMT;
                     GUID subtype;
                     m_u32SourceReaderFlags = 0;
-                    check_hresult(spSourceReader->GetNativeMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, MF_SOURCE_READER_CURRENT_TYPE_INDEX, spMT.put()));
-
-                    check_hresult(spMT->GetGUID(MF_MT_SUBTYPE, &subtype));
-                    if (!IsEqualGUID(subtype, MFVideoFormat_ARGB32))
-                    {
-                        check_hresult(spMT->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32));
-                        check_hresult(spSourceReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, spMT.get()));
-                    }
+                    check_hresult(spSourceReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMT.put()));
                     check_hresult(MFGetAttributeSize(spMT.get(), MF_MT_FRAME_SIZE, &m_u32Width, &m_u32Height));
 
                     int i = 0;

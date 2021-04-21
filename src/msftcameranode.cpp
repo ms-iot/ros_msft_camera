@@ -12,8 +12,10 @@
 #include <winrt\base.h>
 #include <winrt\Windows.Media.h>
 #include <winrt\Windows.Foundation.h>
+#ifdef ENABLE_RTSP
 #include "RTSPServerControl.h"
 #include "RTPMediaStreamer.h"
+#endif
 using namespace winrt::Windows::System::Threading;
 using namespace winrt::Windows::Foundation;
 using namespace ros_msft_camera;
