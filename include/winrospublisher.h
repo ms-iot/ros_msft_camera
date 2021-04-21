@@ -127,7 +127,6 @@ namespace ros_msft_camera
             }
             catch (winrt::hresult_error const& ex)
             {
-                std::wcout << ex.code() << ex.message().c_str();
                 ROS_ERROR("Error Publishing Sample: %x:%s",ex.code().value, winrt::to_string( ex.message().c_str()));
             }
         }
