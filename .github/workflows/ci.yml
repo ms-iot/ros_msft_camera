@@ -32,10 +32,6 @@ jobs:
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
         call "C:\opt\ros\%ROSDISTRO%\x64\setup.bat"
-<<<<<<< HEAD
-        catkin_make -DENABLE_RTSP=1 -DPYTHON_EXECUTABLE=C:\opt\ros\%ROSDISTRO%\x64\python.exe
-=======
         catkin_make -DPYTHON_EXECUTABLE=C:\opt\ros\%ROSDISTRO%\x64\python.exe
->>>>>>> upstream/master
       env:
         ROSDISTRO: ${{ matrix.ROSDISTRO }}

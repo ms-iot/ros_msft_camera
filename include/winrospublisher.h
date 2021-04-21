@@ -110,7 +110,7 @@ namespace ros_msft_camera
                         ros_image->data.resize(size);
                         for (uint32_t i = 0; i < u32Height; i++)
                         {
-                            memcpy(ros_image->data.data(), pix + Stride * i, -Stride);
+                            memcpy(ros_image->data.data() + i * ros_image->step, pix + Stride * i, -Stride);
                         }
                     }
                     else
@@ -127,7 +127,7 @@ namespace ros_msft_camera
             }
             catch (winrt::hresult_error const& ex)
             {
-                std::cout << ex.code() << ex.message().c_str();
+                std::wcout << ex.code() << ex.message().c_str();
             }
         }
 
