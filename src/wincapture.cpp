@@ -126,7 +126,6 @@ namespace ros_msft_camera
         if (m_bStreamingStarted) return;
 
         winrt::com_ptr <IMFMediaType> spMT;
-        GUID subtype;
 
         check_hresult(spSourceReader->SetStreamSelection((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, TRUE));
         check_hresult(spSourceReader->ReadSample(MF_SOURCE_READER_FIRST_VIDEO_STREAM, m_u32SourceReaderFlags, NULL, NULL, NULL, NULL));
@@ -136,7 +135,6 @@ namespace ros_msft_camera
     void WindowsMFCapture::InitCaptureWithUrl(const winrt::hstring& url)
     {
         winrt::com_ptr<IMFAttributes> spSRAttributes;
-        GUID subtype;
 
         check_hresult(CoInitialize(NULL));
         check_hresult(MFStartup(MF_VERSION));
@@ -297,7 +295,6 @@ namespace ros_msft_camera
         {
             HRESULT hr = S_OK;
             winrt::com_ptr<IMFMediaType> spMediaType;
-            UINT32 FRNum, FRDen;
             int idx = 0;
             _INFO("\nSetting resolution :%dx%d@%f", width, height, frameRate);
             if (!m_bIsController)
@@ -343,7 +340,6 @@ namespace ros_msft_camera
             else
             {
                 DWORD flags = 0;
-                GUID subtype;
                 HRESULT hr = spSourceReader.as<IMFSourceReaderEx>()->SetNativeMediaType(MF_SOURCE_READER_FIRST_VIDEO_STREAM, spMediaType.get(), &flags);
 
                 if (SUCCEEDED(hr))

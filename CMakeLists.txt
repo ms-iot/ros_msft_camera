@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.15.3)
-project(msft_camera)
+project(ros_msft_camera)
 
 find_package(catkin REQUIRED COMPONENTS
-  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs message_generation roslint)
+  image_transport roscpp sensor_msgs nodelet camera_info_manager roslint std_msgs roslint)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -10,22 +10,15 @@ set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set (CMAKE_CXX_EXTENSIONS FALSE)
 
+add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS /DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_compile_options(/EHsc)
 
 roslint_cpp()
-add_message_files(
-   FILES
-   MFSample.msg
- )
-generate_messages(
-   DEPENDENCIES
-   std_msgs
- )
-  
+
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES win_camera
-  CATKIN_DEPENDS image_transport roscpp sensor_msgs nodelet camera_info_manager message_runtime
+  LIBRARIES ${PROJECT_NAME}_lib
+  CATKIN_DEPENDS image_transport roscpp sensor_msgs nodelet camera_info_manager
   )
 
 include_directories(
@@ -41,24 +34,22 @@ include(external/CmakeLists.txt)
 endif(ENABLE_RTSP)
 
 ## Declare a cpp library
-add_library(win_camera STATIC src/winrospublisher.cpp src/wincapture.cpp)
+add_library(${PROJECT_NAME}_lib STATIC src/winrospublisher.cpp src/wincapture.cpp)
 
-add_dependencies(win_camera msft_camera_generate_messages_cpp)
-
-add_library(msft_camera_nodelet SHARED src/msftcameranodelet.cpp)
-set_target_properties(msft_camera_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
+add_library(${PROJECT_NAME}_nodelet SHARED src/msftcameranodelet.cpp)
+set_target_properties(${PROJECT_NAME}_nodelet PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE) 
 
 ## Declare a cpp executable
-add_executable(msft_camera_node src/msftcameranode.cpp)
-add_dependencies(msft_camera_node win_camera)
+add_executable(${PROJECT_NAME}_node src/msftcameranode.cpp)
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_lib)
 if(ENABLE_RTSP)
-add_dependencies(msft_camera_node RTPMediaStreamer RTSPServer)
+add_dependencies(${PROJECT_NAME}_node RTPMediaStreamer RTSPServer)
 endif(ENABLE_RTSP)
 
-add_dependencies(msft_camera_nodelet win_camera)
+add_dependencies(${PROJECT_NAME}_nodelet ${PROJECT_NAME}_lib)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(win_camera
+target_link_libraries(${PROJECT_NAME}_lib
   ${catkin_LIBRARIES}
   )
 
@@ -69,7 +60,7 @@ set(RTSP_LIBS
 endif(ENABLE_RTSP)
 
 set (COMMON_LIBS 
-     win_camera
+     ${PROJECT_NAME}_lib
      mf
      mfplat
      mfuuid
@@ -78,13 +69,13 @@ set (COMMON_LIBS
      shlwapi
      runtimeobject)
 
-target_link_libraries(msft_camera_nodelet
+target_link_libraries(${PROJECT_NAME}_nodelet
   ${catkin_LIBRARIES}
   ${COMMON_LIBS}
   )
 
 
-target_link_libraries(msft_camera_node
+target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${COMMON_LIBS}
   ${RTSP_LIBS}
@@ -93,16 +84,7 @@ target_link_libraries(msft_camera_node
 #############
 ## Install ##
 #############
-
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark executables and/or libraries for installation
-install(TARGETS win_camera msft_camera_nodelet msft_camera_node
+install(TARGETS ${PROJECT_NAME}_lib ${PROJECT_NAME}_nodelet ${PROJECT_NAME}_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -110,6 +92,14 @@ install(TARGETS win_camera msft_camera_nodelet msft_camera_node
 
 install(DIRECTORY include
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  )
+
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(DIRECTORY config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
 # add xml file
@@ -130,9 +120,9 @@ if (CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   add_rostest_gtest(testMsftCamera test/msftCamera.test
     test/testMsftCamera.cpp)
-  target_link_libraries(testMsftCamera win_camera ${catkin_LIBRARIES})
+  target_link_libraries(testMsftCamera ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
 
   add_rostest_gtest(testMsftCameraNoYaml test/msftCameraNoYaml.test
     test/testMsftCameraNoYaml.cpp)
-  target_link_libraries(testMsftCameraNoYaml win_camera ${catkin_LIBRARIES})
+  target_link_libraries(testMsftCameraNoYaml ${PROJECT_NAME}_lib ${catkin_LIBRARIES})
 endif()
