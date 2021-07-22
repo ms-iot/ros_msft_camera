@@ -23,7 +23,6 @@ def generate_launch_description():
                 {'frame_id': 'camera'},
                 {'image_width': 1280 },
                 {'image_height': 720 },
-                {'videoDeviceId': '\\\\?\\USB#VID_045E&PID_097D&MI_00#7&16658bf3&0&0000#{e5323777-f976-4f5b-9b55-b94699c46e44}\\GLOBAL'},
                 {'camera_info_url': 'package://win_camera/camera_info/camera.yaml'},
             ],
             arguments=[{'--ros-args', '--log-level', 'INFO'}]
