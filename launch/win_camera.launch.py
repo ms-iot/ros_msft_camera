@@ -21,18 +21,24 @@ def generate_launch_description():
             parameters=[
                 {'frame_rate': 5.0},
                 {'frame_id': 'camera'},
+                {'image_width': 1280 },
+                {'image_height': 720 },
                 {'camera_info_url': 'package://win_camera/camera_info/camera.yaml'},
-            ]),
-        launch_ros.actions.Node(
-            package='tf2_ros', executable='static_transform_publisher', output='screen',
-            name=['static_transform_publisher'],
-            arguments=[
-                '0.1', '0.2', '0.3', '0.4', '.5', '.6', 'map', 'camera'
-            ]),
-        launch_ros.actions.Node(
-            package='rviz2', executable='rviz2', output='screen',
-            name=['rviz2'],
-            arguments=[
-                '-d', rviz_default_view
-            ]),
+            ],
+            arguments=[{'--ros-args', '--log-level', 'INFO'}]
+            ),
+
+        #launch_ros.actions.Node(
+        #    package='tf2_ros', executable='static_transform_publisher', output='screen',
+        #    name=['static_transform_publisher'],
+        #    arguments=[
+        #        '0.1', '0.2', '0.3', '0.4', '.5', '.6', 'map', 'camera'
+        #    ]),
+            
+#        launch_ros.actions.Node(
+#            package='rviz2', executable='rviz2', output='screen',
+#            name=['rviz2'],
+#            arguments=[
+#                '-d', rviz_default_view
+#            ]),
     ])

@@ -80,6 +80,9 @@ namespace ros_win_camera
         winrt::com_ptr<IMFSensorGroup> spSensorGrp;
         winrt::com_ptr<IMFSensorDevice> spSensorDevice;
 
+        check_hresult(CoInitialize(NULL));
+        check_hresult(MFStartup(MF_VERSION));
+
         check_hresult(MFCreateSensorGroup(cameraSymbolicLink.c_str(), spSensorGrp.put()));
         check_hresult(spSensorGrp->GetSensorDevice(0, spSensorDevice.put()));
         check_hresult(spSensorDevice->SetSensorDeviceMode(m_bIsController? MFSensorDeviceMode::MFSensorDeviceMode_Controller : MFSensorDeviceMode::MFSensorDeviceMode_Shared));
