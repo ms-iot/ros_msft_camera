@@ -50,6 +50,23 @@ CameraDriver::CameraDriver(const rclcpp::NodeOptions & options)
             video_source_path_ = winrt::to_string(ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false).GetAt(i));
         }
     }
+    else if (video_source_path_ == "enumerate")
+    {
+        int i = 0;
+        RCLCPP_INFO(this->get_logger(), "Available Cameras:");
+
+        auto links = ros_win_camera::WindowsMFCapture::EnumerateCameraLinks(false);
+        for (auto sym : links)
+        {
+            RCLCPP_INFO(this->get_logger(), "%d. %s", ++i, winrt::to_string(sym).c_str());
+        }
+
+        if (links.Size() > 0)
+        {
+            video_source_path_ = winrt::to_string(links.GetAt(0));
+        }
+    }
+
     camera_info_manager_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, frame_id_, "");
     if (!camera_info_url_.empty())
     {
