@@ -1,5 +1,6 @@
 // Copyright (C) Microsoft Corporation. All rights reserved.
 #include <iostream>
+#include <mutex>
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>

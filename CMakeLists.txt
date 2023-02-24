@@ -75,6 +75,7 @@ ament_target_dependencies(win_camera
   camera_info_manager
   sensor_msgs
   rclcpp
+  rclcpp_components
 )
 
 ## Declare a cpp executable
